@@ -1,6 +1,6 @@
 #pragma once
 #include "afxcmn.h"
-
+#include "MachineInfo.h"
 
 // CPageDevice ¶Ô»°¿ò
 #define PER_BOARD_SLOTS 4
@@ -25,24 +25,35 @@ private:
 	CImageList m_ImageList;
 	CListCtrl  m_ListCtrl;
 	CRect      m_rect;
-	UINT       m_nBoardNum;
+	UINT       m_nSlotCount;
+
+	CMachineInfo *m_pMachine;
 
 	enum
 	{
 		SD_EMPTY = 0,
 		SD_RED,
-		SD_GREEN
+		SD_GREEN,
+		SD_YELLOW
 	};
 
 	void ChangeSize(CWnd *pWnd,int cx,int cy);
+	void AdjustListCtrlSpace();
 
 public:
 	virtual BOOL OnInitDialog();
 
-	void SetDeviceNumber(UINT nSlotNum);
-
 	void ChangeDeviceStatus();
+
+	void SetMachineInfo(CMachineInfo *pMachine);
 
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
+protected:
+	afx_msg LRESULT OnInitDevice(WPARAM wParam, LPARAM lParam);
+public:
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+protected:
+	afx_msg LRESULT OnChangeSlotCount(WPARAM wParam, LPARAM lParam);
 };

@@ -6,13 +6,22 @@
 #include "afxcmn.h"
 #include "PageDevice.h"
 #include "PageLog.h"
+#include "PageList.h"
+#include "PageDataReport.h"
+#include "PageExportSN.h"
 #include "afxwin.h"
 #include "SerialPort.h"
+#include "MachineInfo.h"
+#include "Ini.h"
+#include "SlotData.h"
 
 #define  TIMER_TIME 1
-#define  PRJ_NAME   _T("PHIYO-ST123-Ver:")
+#define  PRJ_NAME   _T("PHIYO-TS123-Ver:")
 #define  TEMP_FILE  _T("\\temp.log")
 #define  DEFAULT_PASSWORD  _T("phiyo")
+#define  CONFIG_FILE _T("\\setting.ini")
+
+#define PAGE_COUNT  5
 
 // CTMonitorDlg dialog
 class CTMonitorDlg : public CDialogEx
@@ -45,18 +54,36 @@ private:
 	BOOL        m_bCheckTime;
 	CComboBox   m_comboCom;
 
-	//CPageDevice m_PageDevice;
+	CPageDevice m_PageDevice;
 	CPageLog    m_PageLog;
-	//CDialogEx   *m_pDlg[2];
+	CPageList   m_PageList;
+	CPageDataReport m_PageReport;
+	CPageExportSN   m_PageExportSN;
+	CDialogEx   *m_pDlg[PAGE_COUNT];
 	INT         m_nCurSelTab;
 
 	CBrush      m_brush;
 	BOOL        m_bConnected;
+	BOOL        m_bLocked;
 	CSerialPort m_SerialPort;
 	CString     m_strReadLine;
 	CString     m_strAppPath;
 	CString     m_strPassWord;
 	CRect       m_Rect;
+
+	CString     m_strMachineID;
+	CString     m_strAlias;
+	CString     m_strMachineName;
+	CString     m_strFirmware;
+	CString     m_strBLD;
+	UINT        m_nSlotCount;
+
+	CMachineInfo m_Machine;
+	HANDLE      m_hEvent;
+
+	CIni        m_Ini;
+	CMySlotData m_SlotData;
+	//CStringArray m_strSNArray;
 
 	void EnableAutoSaveCtrl(BOOL bEnable = TRUE);
 	void EnableAllSettingCtrl(BOOL bEnable = TRUE);
@@ -70,7 +97,7 @@ public:
 	static CString GetErrorMessage( DWORD dwErrorCode );
 
 public:
-	//afx_msg void OnTcnSelchangeTabMain(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnTcnSelchangeTabMain(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnBnClickedCheckAutoSave();
@@ -86,8 +113,12 @@ public:
 	afx_msg void OnCbnDropdownComboCom();
 protected:
 	afx_msg LRESULT OnOnComReceive(WPARAM wParam, LPARAM lParam);
+	static DWORD WINAPI ComReceiveThreadProc(LPVOID lpParm);
+	void OnReceive();
 public:
 	afx_msg void OnClose();
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
+protected:
+	afx_msg LRESULT OnUpdateResult(WPARAM wParam, LPARAM lParam);
 };

@@ -6,6 +6,11 @@
 // v1.0.3.0 2014-01-21 1.当收到##STARTTASK::标志时，自动清屏
 //                     2.修改设置密码方式
 //                     3.界面可以最大化显示
+// v2.0.0.0 2014-05-16 1.增加Device Status页面和Summary List页面
+//          2014-05-17 2.增加Data Report页面
+//          2014-05-20 3.增加上传SN时导出SN功能
+// v2.0.1.0 2014-05-22 1.增加Export SN页面
+//                     2.增加中文版
 
 #include "stdafx.h"
 #include "TMonitor.h"
@@ -88,8 +93,14 @@ CTMonitorDlg::CTMonitorDlg(CWnd* pParent /*=NULL*/)
 	, m_bCheckDate(FALSE)
 	, m_bCheckTime(FALSE)
 	, m_bConnected(FALSE)
+	, m_bLocked(FALSE)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	m_PageDevice.SetMachineInfo(&m_Machine);
+	m_PageList.SetMachineInfo(&m_Machine);
+	m_PageReport.SetMySlotData(&m_SlotData);
+	m_PageExportSN.SetMySlotData(&m_SlotData);
+	m_nSlotCount = 24;
 }
 
 void CTMonitorDlg::DoDataExchange(CDataExchange* pDX)
@@ -106,7 +117,7 @@ BEGIN_MESSAGE_MAP(CTMonitorDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	//ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_MAIN, &CTMonitorDlg::OnTcnSelchangeTabMain)
+	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_MAIN, &CTMonitorDlg::OnTcnSelchangeTabMain)
 	ON_WM_CTLCOLOR()
 	ON_WM_TIMER()
 	ON_BN_CLICKED(IDC_CHECK_AUTO_SAVE, &CTMonitorDlg::OnBnClickedCheckAutoSave)
@@ -123,6 +134,7 @@ BEGIN_MESSAGE_MAP(CTMonitorDlg, CDialogEx)
 	ON_MESSAGE(ON_COM_RECEIVE, &CTMonitorDlg::OnOnComReceive)
 	ON_WM_CLOSE()
 	ON_WM_SIZE()
+	ON_MESSAGE(WM_UPDATE_RESULT, &CTMonitorDlg::OnUpdateResult)
 END_MESSAGE_MAP()
 
 
@@ -180,30 +192,83 @@ BOOL CTMonitorDlg::OnInitDialog()
 	CString strTitle = PRJ_NAME + strVersion;
 	SetWindowText(strTitle);
 
-	//为Tab添加2个页面
-	m_tabMain.InsertItem(0,_T("Log Message"));
-	//m_tabMain.InsertItem(1,_T("Device Status"));
+	// 读配置文件
+	m_Ini.SetPathName(m_strAppPath + CONFIG_FILE);
+	m_bCheckAutoSave = m_Ini.GetBool(_T("LOG Setting"),_T("EN_AUTO_SAVE"),FALSE);
+	m_bCheckDate = m_Ini.GetBool(_T("LOG Setting"),_T("EN_DATE"),FALSE);
+	m_bCheckTime = m_Ini.GetBool(_T("LOG Setting"),_T("EN_TIME"),FALSE);
+	CString strPrefix = m_Ini.GetString(_T("LOG Setting"),_T("PREFIX"));
+	strPrefix.Trim();
+	CString strLocation = m_Ini.GetString(_T("LOG Setting"),_T("LOCATION"));
+	strLocation.Trim();
+	CString strSerialPort = m_Ini.GetString(_T("ComPort Setting"),_T("SERIAL_PORT"));
+	strSerialPort.Trim();
+	BOOL bAutoConnect = m_Ini.GetBool(_T("ComPort Setting"),_T("EN_AUTO_CONNECT"),FALSE);
+	CString strDBPath = m_Ini.GetString(_T("DB Setting"),_T("DB_PATH"),_T("C:\\PHIYO"));
+	strDBPath.TrimRight(_T('\\'));
+	m_SlotData.InitialDatabase(strDBPath);
 
-	//创建2个对话框
+	CString strAlias = m_Ini.GetString(_T("Machine Info"),_T("ALIAS"));
+
+	SetDlgItemText(IDC_EDIT_PREFIX,strPrefix);
+	SetDlgItemText(IDC_EDIT_LOCATION,strLocation);
+	SetDlgItemText(IDC_EDIT_ALIAS,strAlias);
+	
+	UpdateData(FALSE);
+
+	//为Tab添加3个页面
+	CString strText;
+
+	strText.LoadString(IDS_PAGE_LOG_MESSAGE);
+	m_tabMain.InsertItem(0,strText);
+
+	strText.LoadString(IDS_PAGE_DEVICE_STATUS);
+	m_tabMain.InsertItem(1,strText);
+
+	strText.LoadString(IDS_PAGE_SUMMARY_LIST);
+	m_tabMain.InsertItem(2,strText);
+
+	strText.LoadString(IDS_PAGE_DATA_REPORT);
+	m_tabMain.InsertItem(3,strText);
+
+	strText.LoadString(IDS_PAGE_EXPORT_SN);
+	m_tabMain.InsertItem(4,strText);
+
+	//创建3个对话框
 	m_PageLog.Create(IDD_DIALOG_LOG,&m_tabMain);
-	//m_PageDevice.Create(IDD_DIALOG_DEVICE_STATUS,&m_tabMain);
+	m_PageDevice.Create(IDD_DIALOG_DEVICE_STATUS,&m_tabMain);
+	m_PageList.Create(IDD_DIALOG_DEVICE_LIST,&m_tabMain);
+	m_PageReport.Create(IDD_DIALOG_DATA_REPORT,&m_tabMain);
+	m_PageExportSN.Create(IDD_DIALOG_EXPORT_SN,&m_tabMain);
 
 	//显示初始界面
-	m_PageLog.ShowWindow(SW_SHOW);
-	//m_PageDevice.ShowWindow(SW_HIDE);
-	//m_nCurSelTab = 0;
+	m_PageLog.ShowWindow(SW_HIDE);
+	m_PageDevice.ShowWindow(SW_SHOW);
+	m_PageList.ShowWindow(SW_HIDE);
+	m_PageReport.ShowWindow(SW_HIDE);
+	m_PageExportSN.ShowWindow(SW_HIDE);
+	m_nCurSelTab = 1;
+
+	m_tabMain.SetCurSel(m_nCurSelTab);
 
 	//保存对话框页面指针
-	//m_pDlg[0] = &m_PageLog;
-	//m_pDlg[1] = &m_PageDevice;
+	m_pDlg[0] = &m_PageLog;
+	m_pDlg[1] = &m_PageDevice;
+	m_pDlg[2] = &m_PageList;
+	m_pDlg[3] = &m_PageReport;
+	m_pDlg[4] = &m_PageExportSN;
 
 	m_brush.CreateSolidBrush(RGB(102,205,170));
 
 	// 初始化AutoSave
 	EnableAutoSaveCtrl(m_bCheckAutoSave);
 	CTime time = CTime::GetCurrentTime();
-	CString strDate = time.Format(_T("Date: %Y-%m-%d"));
-	CString strTime = time.Format(_T("Time: %H-%M-%S")); 
+
+	strText.LoadString(IDS_FORMAT_DATE);
+	CString strDate = time.Format(strText);
+
+	strText.LoadString(IDS_FORMAT_TIME);
+	CString strTime = time.Format(strText); 
 
 	SetDlgItemText(IDC_CHECK_DATE,strDate);
 	SetDlgItemText(IDC_CHECK_TIME,strTime);
@@ -212,15 +277,29 @@ BOOL CTMonitorDlg::OnInitDialog()
 	CStringArray strArrayName,strArrayPort;	
 	GetSystemPorts(strArrayName,strArrayPort);
 
-	for (int i = 0;i<strArrayPort.GetCount();i++)
+	int nSelectIndex = 0;
+	int nCount = strArrayPort.GetCount();
+	for (int i = 0;i<nCount;i++)
 	{
-		m_comboCom.AddString(strArrayPort.GetAt(i));
+		CString strPort = strArrayPort.GetAt(i);
+		if (strPort.CompareNoCase(strSerialPort) == 0)
+		{
+			nSelectIndex = i;
+		}
+		m_comboCom.AddString(strPort);
 	}
 
-	m_comboCom.SetCurSel(0);
+	m_comboCom.SetCurSel(nSelectIndex);
 
 	// 开启定时器
 	SetTimer(TIMER_TIME,1000,NULL);
+
+	m_hEvent = CreateEvent(NULL,FALSE,TRUE,NULL);
+
+	if (bAutoConnect)
+	{
+		OnBnClickedButtonConnect();
+	}
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -276,14 +355,14 @@ HCURSOR CTMonitorDlg::OnQueryDragIcon()
 
 
 
-// void CTMonitorDlg::OnTcnSelchangeTabMain(NMHDR *pNMHDR, LRESULT *pResult)
-// {
-// 	// TODO: 在此添加控件通知处理程序代码
-// 	m_pDlg[m_nCurSelTab]->ShowWindow(SW_HIDE);
-// 	m_nCurSelTab = m_tabMain.GetCurSel();
-// 	m_pDlg[m_nCurSelTab]->ShowWindow(SW_SHOW);
-// 	*pResult = 0;
-// }
+void CTMonitorDlg::OnTcnSelchangeTabMain(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	// TODO: 在此添加控件通知处理程序代码
+	m_pDlg[m_nCurSelTab]->ShowWindow(SW_HIDE);
+	m_nCurSelTab = m_tabMain.GetCurSel();
+	m_pDlg[m_nCurSelTab]->ShowWindow(SW_SHOW);
+	*pResult = 0;
+}
 
 
 HBRUSH CTMonitorDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
@@ -305,12 +384,16 @@ HBRUSH CTMonitorDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 void CTMonitorDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	CString strText;
 	switch (nIDEvent)
 	{
 	case TIMER_TIME:
 		CTime time = CTime::GetCurrentTime();
-		CString strDate = time.Format(_T("Date: %Y-%m-%d"));
-		CString strTime = time.Format(_T("Time: %H-%M-%S")); 
+		strText.LoadString(IDS_FORMAT_DATE);
+		CString strDate = time.Format(strText);
+
+		strText.LoadString(IDS_FORMAT_TIME);
+		CString strTime = time.Format(strText); 
 
 		SetDlgItemText(IDC_CHECK_DATE,strDate);
 		SetDlgItemText(IDC_CHECK_TIME,strTime);
@@ -378,12 +461,17 @@ void CTMonitorDlg::UpdateFileName()
 	GetDlgItemText(IDC_EDIT_PREFIX,strPrefix);
 	strPrefix.Trim();
 
-	strFileName += _T("File Name: ");
+	CString strText;
+	strText.LoadString(IDS_FILE_NAME);
+	strFileName +=strText;
 	strFileName += strPrefix;
 
 	CTime time = CTime::GetCurrentTime();
-	CString strDate = time.Format(_T("Date: %Y-%m-%d"));
-	CString strTime = time.Format(_T("Time: %H-%M-%S")); 
+	strText.LoadString(IDS_FORMAT_DATE);
+	CString strDate = time.Format(strText);
+
+	strText.LoadString(IDS_FORMAT_TIME);
+	CString strTime = time.Format(strText); 
 
 	if (m_bCheckDate)
 	{
@@ -406,14 +494,12 @@ void CTMonitorDlg::OnBnClickedButtonBrowser()
 	BROWSEINFO broInfo = {0};
 	TCHAR      szDisName[MAX_PATH] = {0};
 
-	CString strTitle = _T("Please select save log loaction : ");
 	UINT    ulFalgs = BIF_NEWDIALOGSTYLE | BIF_DONTGOBELOWDOMAIN
 		| BIF_BROWSEFORCOMPUTER | BIF_RETURNONLYFSDIRS | BIF_RETURNFSANCESTORS;
 
 	broInfo.hwndOwner = this->m_hWnd;
 	broInfo.pidlRoot  = NULL;
 	broInfo.pszDisplayName = szDisName;
-	broInfo.lpszTitle = strTitle;
 	broInfo.ulFlags   = ulFalgs;
 	broInfo.lpfn      = NULL;
 	broInfo.lParam    = NULL;
@@ -456,12 +542,13 @@ void CTMonitorDlg::OnBnClickedButtonSaveAs()
 void CTMonitorDlg::OnBnClickedButtonLock()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	CString strBtnText,strPassword;
-	GetDlgItemText(IDC_BUTTON_LOCK,strBtnText);
+	CString strPassword;
 	GetDlgItemText(IDC_EDIT_PASSWORD,strPassword);
 	strPassword.Trim();
 
-	if (strBtnText == _T("Lock"))
+	CString strText;
+
+	if (!m_bLocked)
 	{
 		if (strPassword.IsEmpty())
 		{
@@ -472,20 +559,33 @@ void CTMonitorDlg::OnBnClickedButtonLock()
 			m_strPassWord = strPassword;
 		}
 
+		m_bLocked = TRUE;
+
 		SetDlgItemText(IDC_EDIT_PASSWORD,NULL);
-		SetDlgItemText(IDC_BUTTON_LOCK,_T("Unlock"));
+
+		strText.LoadString(IDS_UNLOCK);
+		SetDlgItemText(IDC_BUTTON_LOCK,strText);
+
 		EnableAllSettingCtrl(FALSE);
 	}
 	else
 	{
 		if (strPassword == m_strPassWord || strPassword == DEFAULT_PASSWORD)
 		{
-			SetDlgItemText(IDC_BUTTON_LOCK,_T("Lock"));
+			strText.LoadString(IDS_LOCK);
+			SetDlgItemText(IDC_BUTTON_LOCK,strText);
+
 			EnableAllSettingCtrl(TRUE);
+
+			m_bLocked = FALSE;
 		}
 		else
 		{
-			MessageBox(_T("Password error"),_T("Error"),MB_OK| MB_ICONERROR);
+			CString strMsg,strTitle;
+			strMsg.LoadString(IDS_MSG_PASSWORD_ERROR);
+			strTitle.LoadString(IDS_MSG_TITAL_ERROR);
+
+			MessageBox(strMsg,strTitle,MB_OK| MB_ICONERROR);
 		}
 		SetDlgItemText(IDC_EDIT_PASSWORD,NULL);
 	}
@@ -493,13 +593,27 @@ void CTMonitorDlg::OnBnClickedButtonLock()
 
 void CTMonitorDlg::EnableAllSettingCtrl( BOOL bEnable /*= TRUE*/ )
 {
-	GetDlgItem(IDC_CHECK_AUTO_SAVE)->EnableWindow(bEnable);
-	EnableAutoSaveCtrl(((CButton*)GetDlgItem(IDC_CHECK_AUTO_SAVE))->GetCheck());
 	GetDlgItem(IDC_BUTTON_CLEAR)->EnableWindow(bEnable);
 	GetDlgItem(IDC_BUTTON_SAVE_AS)->EnableWindow(bEnable);
-	GetDlgItem(IDC_TEXT_SERIAL_PORT)->EnableWindow(bEnable);
-	GetDlgItem(IDC_COMBO_COM)->EnableWindow(bEnable);
+
+	if (m_bConnected)
+	{
+		GetDlgItem(IDC_COMBO_COM)->EnableWindow(FALSE);
+		GetDlgItem(IDC_EDIT_ALIAS)->EnableWindow(FALSE);
+		EnableAutoSaveCtrl(FALSE);
+	}
+	else
+	{
+		GetDlgItem(IDC_COMBO_COM)->EnableWindow(bEnable);
+		GetDlgItem(IDC_EDIT_ALIAS)->EnableWindow(bEnable);
+		EnableAutoSaveCtrl(((CButton*)GetDlgItem(IDC_CHECK_AUTO_SAVE))->GetCheck());
+	}
+	
 	GetDlgItem(IDC_BUTTON_CONNECT)->EnableWindow(bEnable);
+
+	m_PageReport.EnableControls(bEnable);
+	m_PageExportSN.EnableControls(bEnable);
+	m_PageList.EnableControls(bEnable);
 }
 
 int CTMonitorDlg::GetSystemPorts( CStringArray &strArrayName, CStringArray &strArrayPort )
@@ -536,9 +650,8 @@ int CTMonitorDlg::GetSystemPorts( CStringArray &strArrayName, CStringArray &strA
 void CTMonitorDlg::OnBnClickedButtonConnect()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	CString strConnect;
-	GetDlgItemText(IDC_BUTTON_CONNECT,strConnect);
-	if (strConnect == _T("Connect"))
+	CString strText;
+	if (!m_bConnected)
 	{
 		CString strComName ;
 		m_comboCom.GetWindowText(strComName);
@@ -556,8 +669,11 @@ void CTMonitorDlg::OnBnClickedButtonConnect()
 
 		EnableAutoSaveCtrl(FALSE);
 		GetDlgItem(IDC_CHECK_AUTO_SAVE)->EnableWindow(FALSE);
+		GetDlgItem(IDC_EDIT_ALIAS)->EnableWindow(FALSE);
+		m_comboCom.EnableWindow(FALSE);
 
-		SetDlgItemText(IDC_BUTTON_CONNECT,_T("Disconnect"));
+		strText.LoadString(IDS_DISCONNECT);
+		SetDlgItemText(IDC_BUTTON_CONNECT,strText);
 
 		m_PageLog.SetAutoSave(m_bCheckAutoSave);
 
@@ -566,12 +682,20 @@ void CTMonitorDlg::OnBnClickedButtonConnect()
 		{
 			CString strLogFileName;
 			GetDlgItemText(IDC_TEXT_FILE_NAME,strLogFileName);
-			strLogFileName.TrimLeft(_T("File Name:"));
+
+			strText.LoadString(IDS_FILE_NAME);
+			strLogFileName.TrimLeft(strText);
 			strLogFileName.Trim();
 
 			GetDlgItemText(IDC_EDIT_LOCATION,strLogPath);
 			strLogPath.Trim();
 			strLogPath.TrimRight(_T('\\'));
+
+			if (!PathFileExists(strLogPath))
+			{
+				SHCreateDirectoryEx(NULL,strLogPath,NULL);
+			}
+
 			strLogPath += _T("\\") + strLogFileName;
 		}
 		else
@@ -583,14 +707,19 @@ void CTMonitorDlg::OnBnClickedButtonConnect()
 
 		m_bConnected = TRUE;
 
+
+
 	}
 	else
 	{
 		m_bConnected = FALSE;
 		m_SerialPort.Close();
-		SetDlgItemText(IDC_BUTTON_CONNECT,_T("Connect"));
+		strText.LoadString(IDS_CONNECT);
+		SetDlgItemText(IDC_BUTTON_CONNECT,strText);
 		EnableAutoSaveCtrl(m_bCheckAutoSave);
 		GetDlgItem(IDC_CHECK_AUTO_SAVE)->EnableWindow(TRUE);
+		GetDlgItem(IDC_EDIT_ALIAS)->EnableWindow(TRUE);
+		m_comboCom.EnableWindow(TRUE);
 	}
 }
 
@@ -730,45 +859,10 @@ void CTMonitorDlg::OnCbnDropdownComboCom()
 
 afx_msg LRESULT CTMonitorDlg::OnOnComReceive(WPARAM wParam, LPARAM lParam)
 {
-	DWORD dwBufferLength = m_SerialPort.GetInBufferLength()+1;
-	char *pBuffer = new char[dwBufferLength];
-	memset(pBuffer,0,dwBufferLength);
-	m_SerialPort.Read(pBuffer,dwBufferLength);
-
-	USES_CONVERSION;
-	m_strReadLine += CString(A2W(pBuffer));	
-
-	if (m_strReadLine.Find('\n') != -1)
+	if (m_SerialPort.GetInBufferLength() > 0)
 	{
-		int nStrNums = 0;
-		CString* pStr;
-		pStr = SplitString(m_strReadLine,'\n',nStrNums);
-
-		// 如果最后一个不是换行符，说明后面还有下一条的部分信息
-		if (m_strReadLine.ReverseFind('\n') != m_strReadLine.GetLength()-1)
-		{
-			nStrNums--;
-			m_strReadLine = pStr[nStrNums];
-		}
-		else
-		{
-			m_strReadLine.Empty();
-		}
-
-		for (int i = 0; i<nStrNums;i++)
-		{
-			pStr[i].Trim();
-			if (!pStr[i].IsEmpty())
-			{
-				if (pStr[i].Find(_T("##STARTTASK::")) != -1)
-				{
-					m_PageLog.ClearLog();
-				}
-				m_PageLog.AppendLogText(pStr[i]);
-			}					
-		}
+		AfxBeginThread((AFX_THREADPROC)ComReceiveThreadProc,this);
 	}
-	delete []pBuffer;
 	return 0;
 }
 
@@ -801,6 +895,29 @@ void CTMonitorDlg::OnClose()
 	{
 		DeleteFile(strTempPath);
 	}
+
+	// 写配置文件
+	UpdateData(TRUE);
+	m_Ini.WriteBool(_T("LOG Setting"),_T("EN_AUTO_SAVE"),m_bCheckAutoSave);
+	m_Ini.WriteBool(_T("LOG Setting"),_T("EN_DATE"),m_bCheckDate);
+	m_Ini.WriteBool(_T("LOG Setting"),_T("EN_TIME"),m_bCheckTime);
+	CString strPrefix,strLocation,strSerialPort,strAlias;
+	GetDlgItemText(IDC_EDIT_PREFIX,strPrefix);
+	GetDlgItemText(IDC_EDIT_LOCATION,strLocation);
+	m_comboCom.GetLBText(m_comboCom.GetCurSel(),strSerialPort);
+	m_Ini.WriteString(_T("LOG Setting"),_T("PREFIX"),strPrefix);
+	m_Ini.WriteString(_T("LOG Setting"),_T("LOCATION"),strLocation);
+	m_Ini.WriteString(_T("ComPort Setting"),_T("SERIAL_PORT"),strSerialPort);
+
+	GetDlgItemText(IDC_EDIT_ALIAS,strAlias);
+	m_Ini.WriteString(_T("Machine Info"),_T("ALIAS"),strAlias);
+
+// 	// 提示是否需要保存Summary List
+// 	if (IDYES == MessageBox(_T("You are exiting the program now !\r\nDo you want to save the summary list to excel ?"),_T("Tips"),MB_YESNO | MB_DEFBUTTON1 | MB_ICONINFORMATION))
+// 	{
+// 		::SendMessage(m_PageList.GetSafeHwnd(),WM_EXPORT_SUMMARY_LIST,0,0);
+// 	}
+
 	CDialogEx::OnClose();
 }
 
@@ -845,6 +962,10 @@ void CTMonitorDlg::OnSize(UINT nType, int cx, int cy)
 			rectTab.right -= 2;
 			rectTab.bottom -= 2;
 			m_PageLog.MoveWindow(rectTab);
+			m_PageDevice.MoveWindow(rectTab);
+			m_PageList.MoveWindow(rectTab);
+			m_PageReport.MoveWindow(rectTab);
+			m_PageExportSN.MoveWindow(rectTab);
 		}
 		pWnd = pWnd->GetWindow(GW_HWNDNEXT);
 	}
@@ -866,4 +987,477 @@ void CTMonitorDlg::ChangeSize( CWnd *pWnd, int cx, int cy )
 		rect.bottom=rect.bottom*cy/m_Rect.Height();  
 		pWnd->MoveWindow(rect);//设置控件大小 
 	}  
+}
+
+DWORD WINAPI CTMonitorDlg::ComReceiveThreadProc( LPVOID lpParm )
+{
+	CTMonitorDlg *pDlg = (CTMonitorDlg *)lpParm;
+	pDlg->OnReceive();
+	return 0;
+}
+
+void CTMonitorDlg::OnReceive()
+{
+	WaitForSingleObject(m_hEvent,INFINITE);
+	DWORD dwBufferLength = m_SerialPort.GetInBufferLength()+1;
+
+	char *pBuffer = new char[dwBufferLength];
+	memset(pBuffer,0,dwBufferLength);
+	m_SerialPort.Read(pBuffer,dwBufferLength);
+
+	USES_CONVERSION;
+	m_strReadLine += CString(A2W(pBuffer));	
+
+	static bool bSlog = false;
+	static bool bSpeed = false;
+	static bool bSummary = false;
+	static bool bSN = false;
+	static bool bBootStart = false;
+
+	if (m_strReadLine.Find('\n') != -1)
+	{
+		int nStrNums = 0;
+		CString* pStr;
+		pStr = SplitString(m_strReadLine,'\n',nStrNums);
+
+		// 如果最后一个不是换行符，说明后面还有下一条的部分信息
+		if (m_strReadLine.ReverseFind('\n') != m_strReadLine.GetLength()-1)
+		{
+			nStrNums--;
+			m_strReadLine = pStr[nStrNums];
+		}
+		else
+		{
+			m_strReadLine.Empty();
+		}
+
+		for (int i = 0; i<nStrNums;i++)
+		{
+			CString strMessage = pStr[i].Trim();
+			if (!strMessage.IsEmpty())
+			{
+				m_PageLog.AppendLogText(strMessage);
+
+				if (strMessage.Find(_T("#BOOTSTART::")) != -1)
+				{
+					bBootStart = true;
+					continue;
+				}
+
+				if (bBootStart)
+				{
+					int nPos1 = 0,nPos2 = 0;
+
+					nPos1 = strMessage.Find(_T("##MAHINE_NAME:"));
+					if (nPos1 != -1)
+					{
+						nPos1 += 14;
+						nPos2 = strMessage.GetLength();
+						m_strMachineName = strMessage.Right(nPos2-nPos1);
+						m_strMachineName.Trim();
+						continue;
+					}
+
+					nPos1 = strMessage.Find(_T("##MAHINE_ID:"));
+					if (nPos1 != -1)
+					{
+						nPos1 += 12;
+						nPos2 = strMessage.GetLength();
+						m_strMachineID= strMessage.Right(nPos2-nPos1);
+						m_strMachineID.Trim();
+
+						CString strText,strMachineID;
+						strText.LoadString(IDS_FORMAT_MACHINE_ID);
+						strMachineID.Format(strText,m_strMachineID);
+
+						SetDlgItemText(IDC_TEXT_MACHINE_ID,strMachineID);
+						continue;
+					}
+
+					nPos1 = strMessage.Find(_T("##FW_VER:"));
+					if (nPos1 != -1)
+					{
+						nPos1 += 9;
+						nPos2 = strMessage.GetLength();
+						m_strFirmware= strMessage.Right(nPos2-nPos1);
+						m_strFirmware.Trim();
+
+						CString strText,strFirmware;
+						strText.LoadString(IDS_FORMAT_FIRMWARE);
+						strFirmware.Format(strText,m_strFirmware);
+
+						SetDlgItemText(IDC_TEXT_FIRMWARE,strFirmware);
+						continue;
+					}
+
+					nPos1 = strMessage.Find(_T("##BLD:"));
+					if (nPos1 != -1)
+					{
+						nPos1 += 6;
+						nPos2 = strMessage.GetLength();
+						m_strBLD = strMessage.Right(nPos2-nPos1);
+						m_strBLD.Trim();
+
+						CString strText,strBLD;
+						strText.LoadString(IDS_FORMAT_BLD);
+						strBLD.Format(strText,m_strBLD);
+
+						SetDlgItemText(IDC_TEXT_BLD,strBLD);
+						continue;
+					}
+
+					nPos1 = strMessage.Find(_T("##SLOT_NUM:"));
+					if (nPos1 != -1)
+					{
+						nPos1 += 11;
+						nPos2 = strMessage.GetLength();
+						CString strNum = strMessage.Right(nPos2-nPos1);
+						strNum.Trim();
+						m_nSlotCount = _ttoi(strNum);
+
+						if (m_nSlotCount % 4)
+						{
+							m_nSlotCount++;
+						}
+
+						if (m_nSlotCount > 24)
+						{
+							::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_SLOT_COUNT,(WPARAM)m_nSlotCount,0);
+						}
+
+						continue;
+					}
+				}
+
+				// 清除上一轮信息
+				if (strMessage.Find(_T("##STARTTASK::")) != -1)
+				{
+					m_PageLog.ClearLog();
+					m_Machine.Reset();
+
+					m_Machine.SetStartTime(CTime::GetCurrentTime());
+					m_Machine.SetAlias(m_strAlias);
+					m_Machine.SetMachineID(m_strMachineID);
+
+					bSlog = false;
+					bSpeed = false;
+					bSummary = false;
+					bSN = false;
+					continue;
+				}
+
+				// 收集SN ##Upload SN
+				if (strMessage.Find(_T("##Upload SN start")) != -1)
+				{
+					GetDlgItemText(IDC_EDIT_ALIAS,m_strAlias);
+					bSN = true;
+					continue;
+				}
+				// 收集SN ##Upload SN
+				if (strMessage.Find(_T("##Upload SN end")) != -1)
+				{
+					bSN = false;
+					continue;
+				}
+
+				if (bSN)
+				{
+					int nSlotNum = 0;
+					CString strSN;
+					int nPos1 = 0,nPos2 = 0;
+
+					nPos1 = strMessage.Find(_T("##S/N("));
+					if (nPos1 != -1)
+					{
+						nPos1 += 6;
+						nPos2 = strMessage.Find(_T(")"),nPos1);
+
+						CString strSlotNum = strMessage.Mid(nPos1,nPos2-nPos1);
+						strSlotNum.Trim();
+						nSlotNum = _ttoi(strSlotNum);
+
+						nPos1 = nPos2 + 2;
+						nPos2 = strMessage.GetLength();
+						strSN = strMessage.Right(nPos2-nPos1);
+						strSN.Trim();
+
+						DB_SN_INFO dbSN;
+						dbSN.strMachineID = m_strMachineID;
+						dbSN.strAlias = m_strAlias;
+						dbSN.strSN = strSN;
+						dbSN.GetTime = CTime::GetCurrentTime();
+						m_SlotData.AddSN(dbSN);
+					}
+				}
+
+
+				// ###SLOG_S::开始记录SLOT ###SLOG_E::结束记录SLOT，立即输出
+				if (strMessage.Find(_T("###SLOG_S::")) != -1)
+				{
+					bSlog = true;
+					continue;
+				}
+
+				if (strMessage.Find(_T("###SLOG_E::")) != -1)
+				{
+					bSlog = false;
+					bSpeed = true;
+
+					// 输出每个Slot的状态
+					::PostMessage(m_pDlg[1]->GetSafeHwnd(),WM_INIT_DEVICE,0,0);
+					::PostMessage(m_pDlg[2]->GetSafeHwnd(),WM_INIT_DEVICE,0,0);
+					continue;
+				}
+
+				// 记录每个Slot的SlotNum、SN、CapacitySize信息
+				if (bSlog)
+				{
+					bool isSRC = false,isTRG = false;
+
+					int nPos1 = 0,nPos2 = 0;
+
+					nPos1 = strMessage.Find(_T("MACHINEID::"));
+					if (nPos1 != -1)
+					{
+						nPos1 += 10;
+						nPos2 = strMessage.GetLength();
+						m_strMachineID = strMessage.Right(nPos2-nPos1);
+						m_strMachineID.Trim();
+						GetDlgItemText(IDC_EDIT_PREFIX,m_strAlias);
+
+						m_Machine.SetMachineID(m_strMachineID);
+						m_Machine.SetAlias(m_strAlias);
+
+						continue;
+					}
+
+					nPos1 = strMessage.Find(_T("FUNCTION::"));
+					if (nPos1 != -1)
+					{
+						nPos1 += 10;
+						nPos2 = strMessage.GetLength();
+						CString strFunction = strMessage.Right(nPos2-nPos1);
+						strFunction.Trim();
+
+						m_Machine.SetFunction(strFunction);
+
+						continue;
+					}
+
+					nPos1 = strMessage.Find(_T("SRC("));
+
+					if (nPos1 != -1)
+					{
+						isSRC = true;
+					}
+					else
+					{
+						nPos1 = strMessage.Find(_T("TRG("));
+						if (nPos1 != -1)
+						{
+							isTRG = true;
+						}
+					}
+
+					if (isSRC || isTRG)
+					{
+						int nSlotNum = 0;
+						CString strSN;
+						ULONG ulCapacitySizeMB = 0;
+
+						// 获取SlotNum
+						nPos1 += 4; // 跳过SRC( 或者TRG(
+						nPos2 = strMessage.Find(_T(')'),nPos1);
+						CString strSlotNum = strMessage.Mid(nPos1,nPos2-nPos1);
+						strSlotNum.Trim();
+						nSlotNum = _ttoi(strSlotNum);
+
+						//获取S/N
+						nPos1 = strMessage.Find(_T("S/N:"));
+						nPos1 += 4;
+						nPos2 = strMessage.Find(_T("Capacity:"),nPos1);
+						strSN = strMessage.Mid(nPos1,nPos2-nPos1);
+						strSN.Trim();
+
+						//获取Capacity;
+						nPos1 = nPos2 + 9;
+						nPos2 = strMessage.Find(_T("MB"),nPos1);
+						CString strCapacity = strMessage.Mid(nPos1,nPos2-nPos1);
+						strCapacity.Trim();
+						ulCapacitySizeMB = (ULONG)_ttol(strCapacity);
+
+						m_Machine.AddSlot(nSlotNum,strSN,ulCapacitySizeMB);
+
+						continue;
+					}
+
+				}
+
+				//  ###SUMMARY_S::结束速度
+				if (strMessage.Find(_T("###SUMMARY_S::")) != -1)
+				{
+					bSpeed = false;
+					bSummary = true;
+
+					continue;
+				}
+
+				if (bSpeed)
+				{
+					// #Start Speed: 统计一次平均速度
+					if (strMessage.Find(_T("#Start speed:")) != -1)
+					{
+						continue;
+					}
+
+					int nSlotNum = 0;
+					double dbSpeed = 0.0;
+					int nPercent = 0;
+					int nPos1 = 0,nPos2 = 0;
+
+					nPos1 = strMessage.Find(_T("Percent("));
+					if (nPos1 != -1)
+					{
+						nPos1 += 8;
+						nPos2 = strMessage.Find(_T("):"),nPos1);
+						CString strSlotNum = strMessage.Mid(nPos1,nPos2-nPos1);
+						strSlotNum.Trim();
+						nSlotNum = _ttoi(strSlotNum);
+
+						nPos1 = nPos2 + 2;
+						nPos2 = strMessage.GetLength();
+						CString strPercent = strMessage.Right(nPos2-nPos1);
+						strPercent.Trim();
+
+						nPercent = _ttoi(strPercent);
+
+						m_Machine.UpdateSlotPercent(nSlotNum,nPercent);
+
+						continue;
+
+					}
+
+					nPos1 = strMessage.Find(_T("Speed("));
+
+					if (nPos1 != -1)
+					{
+						nPos1 += 6;
+						nPos2 = strMessage.Find(_T("):"),nPos1);
+						CString strSlotNum = strMessage.Mid(nPos1,nPos2-nPos1);
+						strSlotNum.Trim();
+						nSlotNum = _ttoi(strSlotNum);
+
+						nPos1 = nPos2 + 2;
+						nPos2 = strMessage.GetLength();
+						CString strSpeed = strMessage.Right(nPos2-nPos1);
+						strSpeed.Trim();
+
+						dbSpeed = _ttof(strSpeed) / 2. / 1024.;
+
+						m_Machine.UpdateSlotSpeed(nSlotNum,dbSpeed);
+
+						continue;
+					}
+
+					// 过程中出错
+					nPos1 = strMessage.Find(_T("##ERROR:("));
+					if (nPos1 != -1)
+					{
+						nPos1 += 9;
+						nPos2 = strMessage.Find(_T(")"),nPos1);
+						CString strSlotNum = strMessage.Mid(nPos1,nPos2-nPos1);
+						strSlotNum.Trim();
+						nSlotNum = _ttoi(strSlotNum);
+
+						m_Machine.UpdateSlotResult(nSlotNum,FALSE);
+						continue;
+					}
+
+				}
+
+				// ###SUMMARY_E:: 统计结束
+				if (strMessage.Find(_T("###SUMMARY_E::")) != -1)
+				{
+					bSummary = false;
+
+					m_Machine.SetEndTime(CTime::GetCurrentTime());
+					// 显示最终结果
+					PostMessage(WM_UPDATE_RESULT);
+
+					continue;
+				}
+
+				if (bSummary)
+				{
+					int nSlotNum = 0;
+					BOOL bResult = FALSE;
+					int nPos1 = 0,nPos2 = 0;
+
+					nPos1 = strMessage.Find(_T("TARGET"));
+					if (nPos1 != -1)
+					{
+						nPos1 += 6;
+						nPos2 = strMessage.Find(_T("=>("));
+						CString strSlotNum = strMessage.Mid(nPos1,nPos2-nPos1);
+						strSlotNum.Trim();
+						nSlotNum = _ttoi(strSlotNum);
+
+						nPos1 = nPos2 + 3;
+						CString strResult = strMessage.Mid(nPos1,4);
+
+						if (strResult.CompareNoCase(_T("PASS")) == 0)
+						{
+							m_Machine.UpdateSlotResult(0,TRUE);
+							bResult = TRUE;
+						}
+						else
+						{
+							bResult = FALSE;
+						}
+
+						m_Machine.UpdateSlotResult(nSlotNum,bResult);
+
+						continue;
+					}
+				}
+
+			}
+
+
+		}
+	}
+	delete []pBuffer;
+
+	::SetEvent(m_hEvent);
+}
+
+
+afx_msg LRESULT CTMonitorDlg::OnUpdateResult(WPARAM wParam, LPARAM lParam)
+{
+	DB_SLOT dbSlot;
+	dbSlot.strFunction = m_Machine.GetFunction();
+	dbSlot.StartTime = m_Machine.GetStartTime();
+	dbSlot.EndTime = m_Machine.GetEndTime();
+	dbSlot.strMachineID = m_Machine.GetMachineID();
+	dbSlot.strAlias = m_Machine.GetAlias();
+
+	Slot_List slotList;
+	m_Machine.GetSlotList(slotList);
+	POSITION pos = slotList.GetHeadPosition();
+	while (pos)
+	{
+		SLOT_INFO slotInfo = slotList.GetNext(pos);
+
+		dbSlot.iSlot = slotInfo.nSlotNum;
+		dbSlot.strType = (slotInfo.slotType == SlotType_SRC) ? _T("M") : _T("T");
+		dbSlot.strSN = slotInfo.strSN;
+		dbSlot.ulSizeMB = slotInfo.ulCapacityMB;
+		dbSlot.dbSpeed = slotInfo.dbSpeed;
+		dbSlot.iPercent = slotInfo.nPercent;
+		dbSlot.strResult = (slotInfo.bResult) ? _T("PASS") : _T("FAIL");
+
+		m_SlotData.AddSlotData(dbSlot);
+	}
+
+	return 0;
 }

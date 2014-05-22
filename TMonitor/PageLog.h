@@ -1,6 +1,7 @@
 #pragma once
 #include "afxcmn.h"
 #include "afxwin.h"
+#include "TypeDef.h"
 
 
 // CPageLog ¶Ô»°¿ò
@@ -27,6 +28,7 @@ private:
 	CString       m_strAppPath;
 	CString       m_strLogPath;
 	BOOL          m_bAutoSave;
+	HANDLE        m_hEvent;
 
 	void ChangeSize(CWnd *pWnd, int cx, int cy);
 
@@ -41,4 +43,5 @@ public:
 
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 };

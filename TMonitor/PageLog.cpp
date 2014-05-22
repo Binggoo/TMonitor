@@ -19,6 +19,10 @@ CPageLog::CPageLog(CWnd* pParent /*=NULL*/)
 
 CPageLog::~CPageLog()
 {
+	if (m_hEvent != NULL)
+	{
+		::CloseHandle(m_hEvent);
+	}
 }
 
 void CPageLog::DoDataExchange(CDataExchange* pDX)
@@ -64,7 +68,7 @@ BOOL CPageLog::OnInitDialog()
 	rectClient.bottom -= 2;
 	MoveWindow(rectClient);
 
-	AppendLogText(_T("Welcome !!!"));
+	m_hEvent = ::CreateEvent(NULL,FALSE,TRUE,NULL);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// 异常: OCX 属性页应返回 FALSE
@@ -72,6 +76,7 @@ BOOL CPageLog::OnInitDialog()
 
 void CPageLog::AppendLogText( LPCTSTR lpstrBuffer,BOOL bAddTime/* = TRUE*/)
 {
+	WaitForSingleObject(m_hEvent,INFINITE);
 	CString strBuffer;
 
 	if (bAddTime)
@@ -126,6 +131,7 @@ void CPageLog::AppendLogText( LPCTSTR lpstrBuffer,BOOL bAddTime/* = TRUE*/)
 	::WriteFile(hFile,strBuffer,strBuffer.GetLength()*sizeof(TCHAR),&dwSize,NULL);
 	::CloseHandle(hFile);
 	
+	::SetEvent(m_hEvent);
 }
 
 void CPageLog::ChangeSize( CWnd *pWnd, int cx, int cy )
@@ -170,9 +176,11 @@ void CPageLog::ClearLog()
 
 void CPageLog::SaveLog()
 {
-	CString strFilter = _T("Log File(*.log)|*.log | All Files(*.*)|*.*||");
+	CString strText;
+	strText.LoadString(IDS_LOG_FILTER);
+	CString strFilter = strText;
 	CFileDialog dlg(FALSE,_T("log"),NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,strFilter);
-	dlg.m_ofn.lpstrInitialDir = m_strAppPath;
+	//dlg.m_ofn.lpstrInitialDir = m_strAppPath;
 
 	if (IDOK == dlg.DoModal())
 	{
@@ -186,13 +194,19 @@ void CPageLog::SaveLog()
 			SetFileAttributes(strPath,FILE_ATTRIBUTE_NORMAL);
 		}
 		
+		CString strMsg,strTital;
 		if (bOK)
 		{
-			MessageBox(_T("Save log success"),_T("Success"));
+			CString strParameters;
+			strParameters.Format(_T(" /select,%s"),strPath);
+
+			ShellExecute(NULL,_T("open"),_T("Explorer.exe"),strParameters,NULL,SW_SHOW);
 		}
 		else
 		{
-			MessageBox(_T("Save Log failed"),_T("Error"),MB_OK | MB_ICONERROR);
+			strMsg.LoadString(IDS_MSG_SAVE_FAILED);
+			strTital.LoadString(IDS_MSG_TITAL_ERROR);
+			MessageBox(strMsg,strTital,MB_OK | MB_ICONERROR);
 		}
 	}
 }
@@ -205,4 +219,19 @@ void CPageLog::SetLogPath( LPCTSTR lpstrPath )
 void CPageLog::SetAutoSave( BOOL bAutoCheck /*= TRUE*/ )
 {
 	m_bAutoSave = bAutoCheck;
+}
+
+
+BOOL CPageLog::PreTranslateMessage(MSG* pMsg)
+{
+	// TODO: 在此添加专用代码和/或调用基类
+	if (pMsg->message == WM_KEYDOWN)
+	{
+		if (pMsg->wParam == VK_RETURN || pMsg->wParam == VK_ESCAPE)
+		{
+			return TRUE;
+		}
+	}
+
+	return CDialogEx::PreTranslateMessage(pMsg);
 }

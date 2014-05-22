@@ -38,8 +38,12 @@
 #include <afxcontrolbars.h>     // MFC support for ribbons and control bars
 
 
-
-
+#define WM_INIT_DEVICE   (WM_USER + 100)
+#define WM_UPDATE_SPEED  (WM_USER + 101)
+#define WM_UPDATE_RESULT (WM_USER + 102)
+#define WM_EXPORT_SUMMARY_LIST (WM_USER + 103)
+#define WM_UPDATE_SN     (WM_USER + 104)
+#define WM_CHANGE_SLOT_COUNT (WM_USER + 105)
 
 
 

@@ -51,10 +51,12 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\Utils;..\Database;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>..\Utils;..\Database;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -76,12 +78,14 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>..\Utils;..\Database;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>..\Utils;..\Database;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -103,11 +107,24 @@
     <None Include="res\SD-FAIL.png" />
     <None Include="res\SD-PASS.ico" />
     <None Include="res\SD-PASS.png" />
+    <None Include="res\SD-SPECIAL.ico" />
     <None Include="res\TMonitor.ico" />
     <None Include="res\TMonitor.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Database\CppSQLite3U.h" />
+    <ClInclude Include="..\Database\sqlite3.h" />
+    <ClInclude Include="..\Utils\Utils.h" />
+    <ClInclude Include="ColorListCtrl.h" />
+    <ClInclude Include="PageDataReport.h" />
+    <ClInclude Include="PageExportSN.h" />
+    <ClInclude Include="SlotData.h" />
+    <ClInclude Include="excel9.h" />
+    <ClInclude Include="Ini.h" />
+    <ClInclude Include="MachineInfo.h" />
+    <ClInclude Include="MyExcel.h" />
     <ClInclude Include="PageDevice.h" />
+    <ClInclude Include="PageList.h" />
     <ClInclude Include="PageLog.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="SerialPort.h" />
@@ -115,9 +132,21 @@
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TMonitor.h" />
     <ClInclude Include="TMonitorDlg.h" />
+    <ClInclude Include="TypeDef.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Database\CppSQLite3U.cpp" />
+    <ClCompile Include="..\Utils\Utils.cpp" />
+    <ClCompile Include="ColorListCtrl.cpp" />
+    <ClCompile Include="PageDataReport.cpp" />
+    <ClCompile Include="PageExportSN.cpp" />
+    <ClCompile Include="SlotData.cpp" />
+    <ClCompile Include="excel9.cpp" />
+    <ClCompile Include="Ini.cpp" />
+    <ClCompile Include="MachineInfo.cpp" />
+    <ClCompile Include="MyExcel.cpp" />
     <ClCompile Include="PageDevice.cpp" />
+    <ClCompile Include="PageList.cpp" />
     <ClCompile Include="PageLog.cpp" />
     <ClCompile Include="SerialPort.cpp" />
     <ClCompile Include="stdafx.cpp">
