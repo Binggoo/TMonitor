@@ -44,6 +44,7 @@
 #define WM_EXPORT_SUMMARY_LIST (WM_USER + 103)
 #define WM_UPDATE_SN     (WM_USER + 104)
 #define WM_CHANGE_SLOT_COUNT (WM_USER + 105)
+#define WM_SN_REPEATE    (WM_USER + 106)
 
 
 

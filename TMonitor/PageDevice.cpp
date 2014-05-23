@@ -452,3 +452,14 @@ afx_msg LRESULT CPageDevice::OnChangeSlotCount(WPARAM wParam, LPARAM lParam)
 	m_ListCtrl.Invalidate(TRUE);
 	return 0;
 }
+
+void CPageDevice::ChangeDeviceStatus( int iSlot,SLOT_COLOR color )
+{
+	LVITEM lvi = {0};
+	lvi.iItem = iSlot;
+	lvi.iSubItem = 0;
+	lvi.mask = LVIF_IMAGE;
+
+	lvi.iImage = color;
+	m_ListCtrl.SetItem(&lvi);
+}

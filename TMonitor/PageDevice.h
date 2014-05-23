@@ -5,6 +5,14 @@
 // CPageDevice ¶Ô»°¿ò
 #define PER_BOARD_SLOTS 4
 
+typedef enum _ENUM_SLOT_COLOR
+{
+	SD_EMPTY = 0,
+	SD_RED,
+	SD_GREEN,
+	SD_YELLOW
+}SLOT_COLOR;
+
 class CPageDevice : public CDialogEx
 {
 	DECLARE_DYNAMIC(CPageDevice)
@@ -29,21 +37,13 @@ private:
 
 	CMachineInfo *m_pMachine;
 
-	enum
-	{
-		SD_EMPTY = 0,
-		SD_RED,
-		SD_GREEN,
-		SD_YELLOW
-	};
-
 	void ChangeSize(CWnd *pWnd,int cx,int cy);
 	void AdjustListCtrlSpace();
 
 public:
 	virtual BOOL OnInitDialog();
 
-	void ChangeDeviceStatus();
+	void ChangeDeviceStatus(int iSlot,SLOT_COLOR color);
 
 	void SetMachineInfo(CMachineInfo *pMachine);
 

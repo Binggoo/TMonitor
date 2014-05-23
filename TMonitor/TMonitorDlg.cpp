@@ -11,6 +11,7 @@
 //          2014-05-20 3.增加上传SN时导出SN功能
 // v2.0.1.0 2014-05-22 1.增加Export SN页面
 //                     2.增加中文版
+// v2.0.2.0 2014-05-23 1.增加禁止SN重复功能，一旦重复就会报错，并发出警报
 
 #include "stdafx.h"
 #include "TMonitor.h"
@@ -94,6 +95,7 @@ CTMonitorDlg::CTMonitorDlg(CWnd* pParent /*=NULL*/)
 	, m_bCheckTime(FALSE)
 	, m_bConnected(FALSE)
 	, m_bLocked(FALSE)
+	, m_bCheckForbidSN(FALSE)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_PageDevice.SetMachineInfo(&m_Machine);
@@ -111,6 +113,7 @@ void CTMonitorDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_CHECK_DATE, m_bCheckDate);
 	DDX_Check(pDX, IDC_CHECK_TIME, m_bCheckTime);
 	DDX_Control(pDX, IDC_COMBO_COM, m_comboCom);
+	DDX_Check(pDX, IDC_CHECK_DISABLE_SN_REPEAT, m_bCheckForbidSN);
 }
 
 BEGIN_MESSAGE_MAP(CTMonitorDlg, CDialogEx)
@@ -135,6 +138,7 @@ BEGIN_MESSAGE_MAP(CTMonitorDlg, CDialogEx)
 	ON_WM_CLOSE()
 	ON_WM_SIZE()
 	ON_MESSAGE(WM_UPDATE_RESULT, &CTMonitorDlg::OnUpdateResult)
+	ON_MESSAGE(WM_SN_REPEATE, &CTMonitorDlg::OnSnRepeate)
 END_MESSAGE_MAP()
 
 
@@ -209,6 +213,7 @@ BOOL CTMonitorDlg::OnInitDialog()
 	m_SlotData.InitialDatabase(strDBPath);
 
 	CString strAlias = m_Ini.GetString(_T("Machine Info"),_T("ALIAS"));
+	m_bCheckForbidSN = m_Ini.GetBool(_T("Machine Info"),_T("EN_FORBID_SN_REPEAT"),FALSE);
 
 	SetDlgItemText(IDC_EDIT_PREFIX,strPrefix);
 	SetDlgItemText(IDC_EDIT_LOCATION,strLocation);
@@ -600,12 +605,14 @@ void CTMonitorDlg::EnableAllSettingCtrl( BOOL bEnable /*= TRUE*/ )
 	{
 		GetDlgItem(IDC_COMBO_COM)->EnableWindow(FALSE);
 		GetDlgItem(IDC_EDIT_ALIAS)->EnableWindow(FALSE);
+		GetDlgItem(IDC_CHECK_DISABLE_SN_REPEAT)->EnableWindow(FALSE);
 		EnableAutoSaveCtrl(FALSE);
 	}
 	else
 	{
 		GetDlgItem(IDC_COMBO_COM)->EnableWindow(bEnable);
 		GetDlgItem(IDC_EDIT_ALIAS)->EnableWindow(bEnable);
+		GetDlgItem(IDC_CHECK_DISABLE_SN_REPEAT)->EnableWindow(bEnable);
 		EnableAutoSaveCtrl(((CButton*)GetDlgItem(IDC_CHECK_AUTO_SAVE))->GetCheck());
 	}
 	
@@ -650,6 +657,7 @@ int CTMonitorDlg::GetSystemPorts( CStringArray &strArrayName, CStringArray &strA
 void CTMonitorDlg::OnBnClickedButtonConnect()
 {
 	// TODO: 在此添加控件通知处理程序代码
+
 	CString strText;
 	if (!m_bConnected)
 	{
@@ -667,9 +675,13 @@ void CTMonitorDlg::OnBnClickedButtonConnect()
 			return;
 		}
 
+		UpdateData(TRUE);
 		EnableAutoSaveCtrl(FALSE);
 		GetDlgItem(IDC_CHECK_AUTO_SAVE)->EnableWindow(FALSE);
 		GetDlgItem(IDC_EDIT_ALIAS)->EnableWindow(FALSE);
+		GetDlgItem(IDC_CHECK_DISABLE_SN_REPEAT)->EnableWindow(FALSE);
+		GetDlgItemText(IDC_EDIT_ALIAS,m_strAlias);
+
 		m_comboCom.EnableWindow(FALSE);
 
 		strText.LoadString(IDS_DISCONNECT);
@@ -707,8 +719,6 @@ void CTMonitorDlg::OnBnClickedButtonConnect()
 
 		m_bConnected = TRUE;
 
-
-
 	}
 	else
 	{
@@ -719,6 +729,7 @@ void CTMonitorDlg::OnBnClickedButtonConnect()
 		EnableAutoSaveCtrl(m_bCheckAutoSave);
 		GetDlgItem(IDC_CHECK_AUTO_SAVE)->EnableWindow(TRUE);
 		GetDlgItem(IDC_EDIT_ALIAS)->EnableWindow(TRUE);
+		GetDlgItem(IDC_CHECK_DISABLE_SN_REPEAT)->EnableWindow(TRUE);
 		m_comboCom.EnableWindow(TRUE);
 	}
 }
@@ -911,6 +922,7 @@ void CTMonitorDlg::OnClose()
 
 	GetDlgItemText(IDC_EDIT_ALIAS,strAlias);
 	m_Ini.WriteString(_T("Machine Info"),_T("ALIAS"),strAlias);
+	m_Ini.WriteBool(_T("Machine Info"),_T("EN_FORBID_SN_REPEAT"),m_bCheckForbidSN);
 
 // 	// 提示是否需要保存Summary List
 // 	if (IDYES == MessageBox(_T("You are exiting the program now !\r\nDo you want to save the summary list to excel ?"),_T("Tips"),MB_YESNO | MB_DEFBUTTON1 | MB_ICONINFORMATION))
@@ -1149,7 +1161,6 @@ void CTMonitorDlg::OnReceive()
 				// 收集SN ##Upload SN
 				if (strMessage.Find(_T("##Upload SN start")) != -1)
 				{
-					GetDlgItemText(IDC_EDIT_ALIAS,m_strAlias);
 					bSN = true;
 					continue;
 				}
@@ -1163,31 +1174,109 @@ void CTMonitorDlg::OnReceive()
 				if (bSN)
 				{
 					int nSlotNum = 0;
+					int nCount = 0;
 					CString strSN;
 					int nPos1 = 0,nPos2 = 0;
 
-					nPos1 = strMessage.Find(_T("##S/N("));
+					nPos1 = strMessage.Find(_T("##S/N(Slot"));
 					if (nPos1 != -1)
 					{
-						nPos1 += 6;
-						nPos2 = strMessage.Find(_T(")"),nPos1);
+						nPos1 += 10;
+						nPos2 = strMessage.Find(_T("Count"),nPos1);
 
 						CString strSlotNum = strMessage.Mid(nPos1,nPos2-nPos1);
 						strSlotNum.Trim();
 						nSlotNum = _ttoi(strSlotNum);
+
+						nPos1 = nPos2 + 5;
+						nPos2 = strMessage.Find(_T("):"),nPos1);
+						CString strCount = strMessage.Mid(nPos1,nPos2 - nPos1);
+						strCount.Trim();
+						nCount = _ttoi(strCount);
 
 						nPos1 = nPos2 + 2;
 						nPos2 = strMessage.GetLength();
 						strSN = strMessage.Right(nPos2-nPos1);
 						strSN.Trim();
 
-						DB_SN_INFO dbSN;
-						dbSN.strMachineID = m_strMachineID;
-						dbSN.strAlias = m_strAlias;
-						dbSN.strSN = strSN;
-						dbSN.GetTime = CTime::GetCurrentTime();
-						m_SlotData.AddSN(dbSN);
+						if (m_bCheckForbidSN)
+						{
+							CString strSQL;
+							strSQL.Format(_T("SELECT COUNT(*) FROM %s Where sn='%s';"),TS123_SN_TABLE_NAME,strSN);
+							int nCount = m_SlotData.GetCount(strSQL);
+
+							if (nCount != 0)
+							{
+								// 报错，黄灯
+								m_PageDevice.ChangeDeviceStatus(nSlotNum,SD_YELLOW);
+								m_SlotIn.SetAt(nSlotNum,TRUE);
+								PostMessage(WM_SN_REPEATE,(WPARAM)nSlotNum,(LPARAM)SD_YELLOW);
+							}
+							else
+							{
+								// 绿灯
+								m_PageDevice.ChangeDeviceStatus(nSlotNum,SD_GREEN);
+
+								DB_SN_INFO dbSN;
+								dbSN.strMachineID = m_strMachineID;
+								dbSN.strAlias = m_strAlias;
+								dbSN.strSN = strSN;
+								dbSN.GetTime = CTime::GetCurrentTime();
+								m_SlotData.AddSN(dbSN);
+							}
+						}
+						else
+						{
+							// 绿灯
+							m_PageDevice.ChangeDeviceStatus(nSlotNum,SD_GREEN);
+
+							DB_SN_INFO dbSN;
+							dbSN.strMachineID = m_strMachineID;
+							dbSN.strAlias = m_strAlias;
+							dbSN.strSN = strSN;
+							dbSN.GetTime = CTime::GetCurrentTime();
+							m_SlotData.AddSN(dbSN);
+						}
+						
+						continue;
 					}
+
+					nPos1 = strMessage.Find(_T("##Remove card:"));
+					if (nPos1 != -1)
+					{
+						nPos1 += 14;
+						nPos2 = strMessage.GetLength();
+
+						CString strSlotNum = strMessage.Right(nPos2-nPos1).Trim();
+						nSlotNum = _ttoi(strSlotNum);
+
+						// 灭灯
+						m_PageDevice.ChangeDeviceStatus(nSlotNum,SD_EMPTY);
+
+						m_SlotIn.SetAt(nSlotNum,FALSE);
+
+						continue;
+					}
+
+					nPos1 = strMessage.Find(_T("##Bad card:"));
+					if (nPos1 != -1)
+					{
+						nPos1 += 11;
+						nPos2 = strMessage.GetLength();
+
+						CString strSlotNum = strMessage.Right(nPos2-nPos1).Trim();
+						nSlotNum = _ttoi(strSlotNum);
+
+						// 红灯
+						m_PageDevice.ChangeDeviceStatus(nSlotNum,SD_RED);
+						m_SlotIn.SetAt(nSlotNum,TRUE);
+
+						PostMessage(WM_SN_REPEATE,(WPARAM)nSlotNum,(LPARAM)SD_RED);
+
+						continue;
+					}
+
+					continue;
 				}
 
 
@@ -1291,6 +1380,7 @@ void CTMonitorDlg::OnReceive()
 						continue;
 					}
 
+					continue;
 				}
 
 				//  ###SUMMARY_S::结束速度
@@ -1373,6 +1463,7 @@ void CTMonitorDlg::OnReceive()
 						continue;
 					}
 
+					continue;
 				}
 
 				// ###SUMMARY_E:: 统计结束
@@ -1419,6 +1510,8 @@ void CTMonitorDlg::OnReceive()
 
 						continue;
 					}
+
+					continue;
 				}
 
 			}
@@ -1458,6 +1551,39 @@ afx_msg LRESULT CTMonitorDlg::OnUpdateResult(WPARAM wParam, LPARAM lParam)
 
 		m_SlotData.AddSlotData(dbSlot);
 	}
+
+	return 0;
+}
+
+
+afx_msg LRESULT CTMonitorDlg::OnSnRepeate(WPARAM wParam, LPARAM lParam)
+{
+	int iSlot = (int)wParam;
+	SLOT_COLOR color = (SLOT_COLOR)lParam;
+
+	CString strMsg,strText;
+
+	switch (color)
+	{
+	case SD_YELLOW:
+		strText.LoadString(IDS_FORMAT_MSG_SN_REPEAT);
+		break;
+
+	case SD_RED:
+		strText.LoadString(IDS_FORMAT_MSG_BAD_CARD);
+	}
+	
+	strMsg.Format(strText,iSlot);
+
+	m_pDlg[m_nCurSelTab]->ShowWindow(SW_HIDE);
+	m_nCurSelTab = 1;
+	m_pDlg[m_nCurSelTab]->ShowWindow(SW_SHOW);
+	
+
+	CAlarmDlg alarm;
+	alarm.SetSlotIn(&m_SlotIn);
+	alarm.SetSlotMessage(iSlot,strMsg);
+	alarm.DoModal();
 
 	return 0;
 }

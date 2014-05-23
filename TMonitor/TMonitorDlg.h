@@ -14,6 +14,7 @@
 #include "MachineInfo.h"
 #include "Ini.h"
 #include "SlotData.h"
+#include "AlarmDlg.h"
 
 #define  TIMER_TIME 1
 #define  PRJ_NAME   _T("PHIYO-TS123-Ver:")
@@ -84,6 +85,7 @@ private:
 	CIni        m_Ini;
 	CMySlotData m_SlotData;
 	//CStringArray m_strSNArray;
+	SLOT_IN m_SlotIn;
 
 	void EnableAutoSaveCtrl(BOOL bEnable = TRUE);
 	void EnableAllSettingCtrl(BOOL bEnable = TRUE);
@@ -121,4 +123,8 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 protected:
 	afx_msg LRESULT OnUpdateResult(WPARAM wParam, LPARAM lParam);
+private:
+	BOOL m_bCheckForbidSN;
+protected:
+	afx_msg LRESULT OnSnRepeate(WPARAM wParam, LPARAM lParam);
 };

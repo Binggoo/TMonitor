@@ -100,6 +100,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />
+    <None Include="res\alarm.bmp" />
     <None Include="res\homelogo.bmp" />
     <None Include="res\SD-EMPTY.ico" />
     <None Include="res\SD-EMPTY.png" />
@@ -115,6 +116,7 @@
     <ClInclude Include="..\Database\CppSQLite3U.h" />
     <ClInclude Include="..\Database\sqlite3.h" />
     <ClInclude Include="..\Utils\Utils.h" />
+    <ClInclude Include="AlarmDlg.h" />
     <ClInclude Include="ColorListCtrl.h" />
     <ClInclude Include="PageDataReport.h" />
     <ClInclude Include="PageExportSN.h" />
@@ -137,6 +139,7 @@
   <ItemGroup>
     <ClCompile Include="..\Database\CppSQLite3U.cpp" />
     <ClCompile Include="..\Utils\Utils.cpp" />
+    <ClCompile Include="AlarmDlg.cpp" />
     <ClCompile Include="ColorListCtrl.cpp" />
     <ClCompile Include="PageDataReport.cpp" />
     <ClCompile Include="PageExportSN.cpp" />
