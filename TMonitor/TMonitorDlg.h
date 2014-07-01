@@ -17,7 +17,7 @@
 #include "AlarmDlg.h"
 
 #define  TIMER_TIME 1
-#define  PRJ_NAME   _T("PHIYO-TS123-Ver:")
+#define  PRJ_NAME   _T("PHIYO-TS Card Duplicator-Ver:")
 #define  TEMP_FILE  _T("\\temp.log")
 #define  DEFAULT_PASSWORD  _T("phiyo")
 #define  CONFIG_FILE _T("\\setting.ini")

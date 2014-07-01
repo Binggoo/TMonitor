@@ -45,6 +45,7 @@
 #define WM_UPDATE_SN     (WM_USER + 104)
 #define WM_CHANGE_SLOT_COUNT (WM_USER + 105)
 #define WM_SN_REPEATE    (WM_USER + 106)
+#define WM_CHANGE_ICON_SIZE (WM_USER + 107)
 
 
 

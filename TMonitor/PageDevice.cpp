@@ -16,10 +16,13 @@ CPageDevice::CPageDevice(CWnd* pParent /*=NULL*/)
 {
 	m_nSlotCount = 24;
 	m_pMachine = NULL;
+	m_nColumn = 4;
+	m_bMaximied = FALSE;
 }
 
 CPageDevice::~CPageDevice()
 {
+	delete m_pImageList;
 }
 
 void CPageDevice::DoDataExchange(CDataExchange* pDX)
@@ -35,6 +38,7 @@ BEGIN_MESSAGE_MAP(CPageDevice, CDialogEx)
 	ON_MESSAGE(WM_INIT_DEVICE, &CPageDevice::OnInitDevice)
 	ON_WM_CTLCOLOR()
 	ON_MESSAGE(WM_CHANGE_SLOT_COUNT, &CPageDevice::OnChangeSlotCount)
+	ON_MESSAGE(WM_CHANGE_ICON_SIZE, &CPageDevice::OnChangeIconSize)
 END_MESSAGE_MAP()
 
 
@@ -63,15 +67,16 @@ BOOL CPageDevice::OnInitDialog()
 	rectClient.bottom -= 2;
 	MoveWindow(rectClient);
 
-	m_ImageList.Create(64,64,ILC_COLOR32 | ILC_MASK,1,0);
+	m_pImageList = new CImageList;
+	m_pImageList->Create(64,64,ILC_COLOR32 | ILC_MASK,1,0);
 
 	
-	m_ImageList.Add(AfxGetApp()->LoadIcon(IDI_SD_EMPTY));
-	m_ImageList.Add(AfxGetApp()->LoadIcon(IDI_SD_RED));
-	m_ImageList.Add(AfxGetApp()->LoadIcon(IDI_SD_GREEN));
-	m_ImageList.Add(AfxGetApp()->LoadIcon(IDI_SD_YELLOW));
+	m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_EMPTY));
+	m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_RED));
+	m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_GREEN));
+	m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_YELLOW));
 	
-	m_ListCtrl.SetImageList(&m_ImageList,LVSIL_NORMAL);
+	m_ListCtrl.SetImageList(m_pImageList,LVSIL_NORMAL);
 
 	//初始化ListCtrl
 	m_ListCtrl.InsertItem(0,_T("Master"),SD_EMPTY);
@@ -297,13 +302,8 @@ void CPageDevice::AdjustListCtrlSpace()
 	CRect rect;
 	m_ListCtrl.GetClientRect(&rect);
 
-	int cx = rect.Width() / PER_BOARD_SLOTS - 5;
-	int cy = 90;
-
-	if (m_nSlotCount < 32)
-	{
-		cy = rect.Height() / (m_nSlotCount / PER_BOARD_SLOTS);
-	}
+	int cx = rect.Width() / m_nColumn;
+	int cy = rect.Height() / (m_nSlotCount / m_nColumn);
 
 	m_ListCtrl.SetIconSpacing(cx,cy);
 }
@@ -436,6 +436,17 @@ afx_msg LRESULT CPageDevice::OnChangeSlotCount(WPARAM wParam, LPARAM lParam)
 {
 	m_nSlotCount = (UINT)wParam;
 
+	if (m_nSlotCount <= 24)
+	{
+		m_nColumn = 4;
+	}
+	else
+	{
+		m_nColumn = 8;	
+	}
+
+	SendMessage(WM_CHANGE_ICON_SIZE,(WPARAM)m_bMaximied),
+
 	m_ListCtrl.DeleteAllItems();
 
 	//初始化ListCtrl
@@ -462,4 +473,42 @@ void CPageDevice::ChangeDeviceStatus( int iSlot,SLOT_COLOR color )
 
 	lvi.iImage = color;
 	m_ListCtrl.SetItem(&lvi);
+}
+
+
+afx_msg LRESULT CPageDevice::OnChangeIconSize(WPARAM wParam, LPARAM lParam)
+{
+	m_bMaximied = (BOOL)wParam;
+
+	if (m_bMaximied || m_nColumn == 4)
+	{
+		delete m_pImageList;
+		m_pImageList = new CImageList;
+
+		m_pImageList->Create(64,64,ILC_COLOR32 | ILC_MASK,1,0);
+
+
+		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_EMPTY));
+		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_RED));
+		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_GREEN));
+		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_YELLOW));
+
+		m_ListCtrl.SetImageList(m_pImageList,LVSIL_NORMAL);
+	}
+	else
+	{
+		delete m_pImageList;
+		m_pImageList = new CImageList;
+		m_pImageList->Create(32,32,ILC_COLOR32 | ILC_MASK,1,0);
+
+
+		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_EMPTY));
+		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_RED));
+		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_GREEN));
+		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_YELLOW));
+
+		m_ListCtrl.SetImageList(m_pImageList,LVSIL_NORMAL);
+	}
+
+	return 0;
 }

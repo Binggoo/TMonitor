@@ -3,7 +3,6 @@
 #include "MachineInfo.h"
 
 // CPageDevice ¶Ô»°¿ò
-#define PER_BOARD_SLOTS 4
 
 typedef enum _ENUM_SLOT_COLOR
 {
@@ -30,10 +29,12 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 private:
-	CImageList m_ImageList;
+	CImageList *m_pImageList;
 	CListCtrl  m_ListCtrl;
 	CRect      m_rect;
 	UINT       m_nSlotCount;
+	UINT       m_nColumn;
+	BOOL       m_bMaximied;
 
 	CMachineInfo *m_pMachine;
 
@@ -56,4 +57,5 @@ public:
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 protected:
 	afx_msg LRESULT OnChangeSlotCount(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnChangeIconSize(WPARAM wParam, LPARAM lParam);
 };

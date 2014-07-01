@@ -13,6 +13,7 @@
 //                     2.增加中文版
 // v2.0.2.0 2014-05-23 1.增加禁止SN重复功能，一旦重复就会报错，并发出警报
 // v2.0.3.0 2014-05-27 1.修改查询开始时间为最小时间，查询结束时间为最大时间。
+// v2.0.4.0 2014-06-25 1.兼容TF-147机种
 
 #include "stdafx.h"
 #include "TMonitor.h"
@@ -956,6 +957,14 @@ void CTMonitorDlg::OnSize(UINT nType, int cx, int cy)
 	CDialogEx::OnSize(nType, cx, cy);
 
 	// TODO: 在此处添加消息处理程序代码
+	if (nType == SIZE_MAXIMIZED)
+	{
+		::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_ICON_SIZE,(WPARAM)TRUE,0);
+	}
+	else
+	{
+		::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_ICON_SIZE,(WPARAM)FALSE,0);
+	}
 
 	CWnd *pWnd = NULL;
 	pWnd = GetWindow(GW_CHILD);
@@ -1132,12 +1141,9 @@ void CTMonitorDlg::OnReceive()
 						{
 							m_nSlotCount++;
 						}
-
-						if (m_nSlotCount > 24)
-						{
-							::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_SLOT_COUNT,(WPARAM)m_nSlotCount,0);
-						}
-
+						
+						::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_SLOT_COUNT,(WPARAM)m_nSlotCount,0);
+						
 						continue;
 					}
 				}
