@@ -1,6 +1,7 @@
 #pragma once
 #include "afxcmn.h"
 #include "MachineInfo.h"
+#include "SingDevice.h"
 
 // CPageDevice ¶Ô»°¿ò
 
@@ -29,24 +30,26 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 private:
-	CImageList *m_pImageList;
-	CListCtrl  m_ListCtrl;
 	CRect      m_rect;
 	UINT       m_nSlotCount;
 	UINT       m_nColumn;
-	BOOL       m_bMaximied;
 
 	CMachineInfo *m_pMachine;
+	CSingDevice  *m_Devices;
 
 	void ChangeSize(CWnd *pWnd,int cx,int cy);
-	void AdjustListCtrlSpace();
+	
+	void IntialSingDevices();
+
+	
 
 public:
 	virtual BOOL OnInitDialog();
 
-	void ChangeDeviceStatus(int iSlot,SLOT_COLOR color);
-
 	void SetMachineInfo(CMachineInfo *pMachine);
+
+	void ChangeDeviceStatus(int nSlot,UINT nBitmap);
+	void Reset();
 
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
@@ -57,5 +60,4 @@ public:
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 protected:
 	afx_msg LRESULT OnChangeSlotCount(WPARAM wParam, LPARAM lParam);
-	afx_msg LRESULT OnChangeIconSize(WPARAM wParam, LPARAM lParam);
 };

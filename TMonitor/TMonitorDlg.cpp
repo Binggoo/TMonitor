@@ -14,6 +14,10 @@
 // v2.0.2.0 2014-05-23 1.增加禁止SN重复功能，一旦重复就会报错，并发出警报
 // v2.0.3.0 2014-05-27 1.修改查询开始时间为最小时间，查询结束时间为最大时间。
 // v2.0.4.0 2014-06-25 1.兼容TF-147机种
+// v2.0.5.0 2014-06-26 1.修改查询开始时间为程序启动时间
+//                     2.导出Excel表时，把MachineId和SN设置为文本格式
+// v2.0.6.0 2014-09-15 1.修改界面显示，可以抓取卡的插入和拔出状态
+//                     2.数据报表界面中，可以对查询结果进行排序，显示/隐藏项，序列号可编辑
 
 #include "stdafx.h"
 #include "TMonitor.h"
@@ -957,13 +961,10 @@ void CTMonitorDlg::OnSize(UINT nType, int cx, int cy)
 	CDialogEx::OnSize(nType, cx, cy);
 
 	// TODO: 在此处添加消息处理程序代码
-	if (nType == SIZE_MAXIMIZED)
+
+	if (nType == SIZE_MINIMIZED)
 	{
-		::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_ICON_SIZE,(WPARAM)TRUE,0);
-	}
-	else
-	{
-		::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_ICON_SIZE,(WPARAM)FALSE,0);
+		return;
 	}
 
 	CWnd *pWnd = NULL;
@@ -1148,6 +1149,12 @@ void CTMonitorDlg::OnReceive()
 					}
 				}
 
+				// 复位
+				if (strMessage.Find(_T("##RESET")) != -1)
+				{
+					m_PageDevice.Reset();
+				}
+
 				// 清除上一轮信息
 				if (strMessage.Find(_T("##STARTTASK::")) != -1)
 				{
@@ -1215,14 +1222,14 @@ void CTMonitorDlg::OnReceive()
 							if (nCount != 0)
 							{
 								// 报错，黄灯
-								m_PageDevice.ChangeDeviceStatus(nSlotNum,SD_YELLOW);
+								m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_YELLOW);
 								m_SlotIn.SetAt(nSlotNum,TRUE);
 								PostMessage(WM_SN_REPEATE,(WPARAM)nSlotNum,(LPARAM)SD_YELLOW);
 							}
 							else
 							{
 								// 绿灯
-								m_PageDevice.ChangeDeviceStatus(nSlotNum,SD_GREEN);
+								m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_GREEN);
 
 								DB_SN_INFO dbSN;
 								dbSN.strMachineID = m_strMachineID;
@@ -1258,7 +1265,7 @@ void CTMonitorDlg::OnReceive()
 						nSlotNum = _ttoi(strSlotNum);
 
 						// 灭灯
-						m_PageDevice.ChangeDeviceStatus(nSlotNum,SD_EMPTY);
+						m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_GRAY);
 
 						m_SlotIn.SetAt(nSlotNum,FALSE);
 
@@ -1275,7 +1282,7 @@ void CTMonitorDlg::OnReceive()
 						nSlotNum = _ttoi(strSlotNum);
 
 						// 红灯
-						m_PageDevice.ChangeDeviceStatus(nSlotNum,SD_RED);
+						m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_RED);
 						m_SlotIn.SetAt(nSlotNum,TRUE);
 
 						PostMessage(WM_SN_REPEATE,(WPARAM)nSlotNum,(LPARAM)SD_RED);
@@ -1284,6 +1291,48 @@ void CTMonitorDlg::OnReceive()
 					}
 
 					continue;
+				}
+				else
+				{
+					// 检测插卡
+					if (strMessage.Find(_T("##Insert card")) != -1 )
+					{
+						int nSlotNum = 0;
+						int nPos1 = 0,nPos2 = 0;
+						nPos1 = strMessage.Find(_T("##Insert card:"));
+						nPos2 = strMessage.Find(_T(":"),nPos1);
+
+						if (nPos2 != -1)
+						{
+							CString strSlotNum = strMessage.Mid(nPos2 + 1);
+
+							strSlotNum.Trim();
+
+							nSlotNum = _ttoi(strSlotNum);
+
+							m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_NORMAL);
+						}
+					}
+
+					// 检测拔卡
+					if (strMessage.Find(_T("##Remove card")) != -1)
+					{
+						int nSlotNum = 0;
+						int nPos1 = 0,nPos2 = 0;
+						nPos1 = strMessage.Find(_T("##Remove card:"));
+						nPos2 = strMessage.Find(_T(":"),nPos1);
+
+						if (nPos2 != -1)
+						{
+							CString strSlotNum = strMessage.Mid(nPos2 + 1);
+
+							strSlotNum.Trim();
+
+							nSlotNum = _ttoi(strSlotNum);
+
+							m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_GRAY);
+						}
+					}
 				}
 
 

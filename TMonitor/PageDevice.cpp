@@ -17,18 +17,27 @@ CPageDevice::CPageDevice(CWnd* pParent /*=NULL*/)
 	m_nSlotCount = 24;
 	m_pMachine = NULL;
 	m_nColumn = 4;
-	m_bMaximied = FALSE;
+
+	m_Devices = NULL;
 }
 
 CPageDevice::~CPageDevice()
 {
-	delete m_pImageList;
+	if (m_Devices != NULL)
+	{
+		for (int i = 0; i < m_nSlotCount;i++)
+		{
+			m_Devices[i].DestroyWindow();
+		}
+
+		delete []m_Devices;
+		m_Devices = NULL;
+	}
 }
 
 void CPageDevice::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_LIST_DEVICE_STATUS, m_ListCtrl);
 }
 
 
@@ -38,7 +47,6 @@ BEGIN_MESSAGE_MAP(CPageDevice, CDialogEx)
 	ON_MESSAGE(WM_INIT_DEVICE, &CPageDevice::OnInitDevice)
 	ON_WM_CTLCOLOR()
 	ON_MESSAGE(WM_CHANGE_SLOT_COUNT, &CPageDevice::OnChangeSlotCount)
-	ON_MESSAGE(WM_CHANGE_ICON_SIZE, &CPageDevice::OnChangeIconSize)
 END_MESSAGE_MAP()
 
 
@@ -67,26 +75,8 @@ BOOL CPageDevice::OnInitDialog()
 	rectClient.bottom -= 2;
 	MoveWindow(rectClient);
 
-	m_pImageList = new CImageList;
-	m_pImageList->Create(64,64,ILC_COLOR32 | ILC_MASK,1,0);
 
-	
-	m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_EMPTY));
-	m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_RED));
-	m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_GREEN));
-	m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_YELLOW));
-	
-	m_ListCtrl.SetImageList(m_pImageList,LVSIL_NORMAL);
-
-	//初始化ListCtrl
-	m_ListCtrl.InsertItem(0,_T("Master"),SD_EMPTY);
-	for (UINT i = 1;i < m_nSlotCount;i++)
-	{
-		CString strText;
-		strText.Format(_T("T-%d"),i);
-		m_ListCtrl.InsertItem(i,strText,SD_EMPTY);
-		
-	}
+	IntialSingDevices();
 
 	// 设置字体颜色
 	static CFont font;
@@ -146,11 +136,6 @@ void CPageDevice::OnSize(UINT nType, int cx, int cy)
 		pWnd = pWnd->GetWindow(GW_HWNDNEXT);
 	}
 
-	if (m_ListCtrl.GetSafeHwnd())
-	{
-		AdjustListCtrlSpace();
-	}
-
 	GetClientRect(&m_rect);
 
 }
@@ -187,6 +172,7 @@ void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 	int nPass = 0;
 	int nActive = 0;
 	CString strActive,strPass,strFail;
+	UINT nBitmap;
 
 	if (m_pMachine->IsRunning())
 	{
@@ -195,12 +181,6 @@ void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 		for (int i = 0; i < nSlots;i++)
 		{
 			int nSlot =  byteArray.GetAt(i);
-			LVITEM lvi = {0};
-			lvi.iItem = nSlot;
-			lvi.iSubItem = 0;
-			lvi.mask = LVIF_IMAGE;
-
-			m_ListCtrl.GetItem(&lvi);
 
 			SLOT_INFO slotInfo = m_pMachine->GetSlotInfo(nSlot);
 
@@ -208,30 +188,25 @@ void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 			{
 				nActive++;
 
-				if (lvi.iImage != SD_EMPTY)
+				
+				if (nSlot == nSlowestSlot)
 				{
-					lvi.iImage = SD_EMPTY;
+					nBitmap = IDB_SD_YELLOW;
 				}
 				else
 				{
-					if (nSlot == nSlowestSlot)
-					{
-						lvi.iImage = SD_YELLOW;
-					}
-					else
-					{
-						lvi.iImage = SD_GREEN;
-					}
-					
+					nBitmap = IDB_SD_NORMAL;
 				}
+
+				
 			}
 			else
 			{
 				nFail++;
-				lvi.iImage = SD_RED;
+				nBitmap = IDB_SD_RED;
 			}
 
-			m_ListCtrl.SetItem(&lvi);
+			m_Devices[nSlot].SetDeviceState(nBitmap,(ULONGLONG)slotInfo.ulCapacityMB * 1024 * 1024,slotInfo.dbSpeed,slotInfo.nPercent);
 			
 		}
 
@@ -244,27 +219,22 @@ void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 		for (int i = 0; i < nSlots;i++)
 		{
 			int nSlot =  byteArray.GetAt(i);
-			LVITEM lvi = {0};
-			lvi.iItem = nSlot;
-			lvi.iSubItem = 0;
-			lvi.mask = LVIF_IMAGE;
-
-			m_ListCtrl.GetItem(&lvi);
+			
 
 			SLOT_INFO slotInfo = m_pMachine->GetSlotInfo(nSlot);
 
 			if (slotInfo.bResult)
 			{
-				lvi.iImage = SD_GREEN;
+				nBitmap = IDB_SD_GREEN;
 				nPass++;
 			}
 			else
 			{
-				lvi.iImage = SD_RED;
+				nBitmap = IDB_SD_RED;
 				nFail++;
 			}
 
-			m_ListCtrl.SetItem(&lvi);
+			m_Devices[nSlot].SetDeviceState(nBitmap,(ULONGLONG)slotInfo.ulCapacityMB * 1024 * 1024,slotInfo.dbSpeed,slotInfo.nPercent);
 		}
 
 		CString strEndTime,strSpendTime;
@@ -297,17 +267,6 @@ void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 	CDialogEx::OnTimer(nIDEvent);
 }
 
-void CPageDevice::AdjustListCtrlSpace()
-{
-	CRect rect;
-	m_ListCtrl.GetClientRect(&rect);
-
-	int cx = rect.Width() / m_nColumn;
-	int cy = rect.Height() / (m_nSlotCount / m_nColumn);
-
-	m_ListCtrl.SetIconSpacing(cx,cy);
-}
-
 void CPageDevice::SetMachineInfo( CMachineInfo *pMachine )
 {
 	m_pMachine = pMachine;
@@ -320,22 +279,6 @@ afx_msg LRESULT CPageDevice::OnInitDevice(WPARAM wParam, LPARAM lParam)
 
 	KillTimer(1);
 	SetTimer(1,1000,NULL);
-
-	for (UINT i = 0; i <  m_nSlotCount;i++)
-	{
-		LVITEM lvi = {0};
-		lvi.iItem =i;
-		lvi.iSubItem = 0;
-		lvi.mask = LVIF_IMAGE;
-
-		m_ListCtrl.GetItem(&lvi);
-
-		if (lvi.iImage != SD_EMPTY)
-		{
-			lvi.iImage = SD_EMPTY;
-			m_ListCtrl.SetItem(&lvi);
-		}
-	}
 
 	CString strFunction,strStartTime,strEndTime,strSpendTime,strSpeed,strPercent;
 	strText.LoadString(IDS_FORMAT_FUNCTION);
@@ -434,7 +377,23 @@ HBRUSH CPageDevice::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 
 afx_msg LRESULT CPageDevice::OnChangeSlotCount(WPARAM wParam, LPARAM lParam)
 {
-	m_nSlotCount = (UINT)wParam;
+	int nSlotCount = (UINT)wParam;
+
+	if (nSlotCount != m_nSlotCount)
+	{
+		if (m_Devices != NULL)
+		{
+			for (int i = 0; i < m_nSlotCount;i++)
+			{
+				m_Devices[i].DestroyWindow();
+			}
+
+			delete []m_Devices;
+			m_Devices = NULL;
+		}
+
+		m_nSlotCount = nSlotCount;
+	}
 
 	if (m_nSlotCount <= 24)
 	{
@@ -445,70 +404,56 @@ afx_msg LRESULT CPageDevice::OnChangeSlotCount(WPARAM wParam, LPARAM lParam)
 		m_nColumn = 8;	
 	}
 
-	SendMessage(WM_CHANGE_ICON_SIZE,(WPARAM)m_bMaximied),
-
-	m_ListCtrl.DeleteAllItems();
-
-	//初始化ListCtrl
-	m_ListCtrl.InsertItem(0,_T("Master"),SD_EMPTY);
-	for (UINT i = 1;i < m_nSlotCount;i++)
-	{
-		CString strText;
-		strText.Format(_T("T-%d"),i);
-		m_ListCtrl.InsertItem(i,strText,SD_EMPTY);
-	}
-
-	AdjustListCtrlSpace();
-
-	m_ListCtrl.Invalidate(TRUE);
+	IntialSingDevices();
+	
 	return 0;
 }
 
-void CPageDevice::ChangeDeviceStatus( int iSlot,SLOT_COLOR color )
+void CPageDevice::IntialSingDevices()
 {
-	LVITEM lvi = {0};
-	lvi.iItem = iSlot;
-	lvi.iSubItem = 0;
-	lvi.mask = LVIF_IMAGE;
+	m_Devices = new CSingDevice[m_nSlotCount];
 
-	lvi.iImage = color;
-	m_ListCtrl.SetItem(&lvi);
+	CRect rectFrame;
+	GetDlgItem(IDC_DEVICE_FRAME)->GetWindowRect(&rectFrame);
+	ScreenToClient(&rectFrame);
+
+	int rows = m_nSlotCount / m_nColumn;
+
+	if (m_nSlotCount % m_nColumn)
+	{
+		rows++;
+	}
+
+	int nWidth = (rectFrame.Width()-2) / m_nColumn;
+	int nHeight = (rectFrame.Height()-2) / rows;
+
+	for (int i = 0; i < m_nSlotCount;i++)
+	{
+		int nRow = i / m_nColumn;
+		int nCol = i % m_nColumn;
+
+		m_Devices[i].SetDevicePort(i);
+
+		m_Devices[i].Create(IDD_DIALOG_SING_DEVICE,this);
+
+		m_Devices[i].MoveWindow(rectFrame.left + 1 + nWidth * nCol,
+			rectFrame.top + 1 + nHeight * nRow,
+			nWidth,
+			nHeight);
+
+		m_Devices[i].ShowWindow(SW_SHOW);
+	}
 }
 
-
-afx_msg LRESULT CPageDevice::OnChangeIconSize(WPARAM wParam, LPARAM lParam)
+void CPageDevice::ChangeDeviceStatus( int nSlot,UINT nBitmap )
 {
-	m_bMaximied = (BOOL)wParam;
+	m_Devices[nSlot].SetBitmap(nBitmap);
+}
 
-	if (m_bMaximied || m_nColumn == 4)
+void CPageDevice::Reset()
+{
+	for (int i = 0; i < m_nSlotCount;i++)
 	{
-		delete m_pImageList;
-		m_pImageList = new CImageList;
-
-		m_pImageList->Create(64,64,ILC_COLOR32 | ILC_MASK,1,0);
-
-
-		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_EMPTY));
-		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_RED));
-		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_GREEN));
-		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_YELLOW));
-
-		m_ListCtrl.SetImageList(m_pImageList,LVSIL_NORMAL);
+		m_Devices[i].Intial();
 	}
-	else
-	{
-		delete m_pImageList;
-		m_pImageList = new CImageList;
-		m_pImageList->Create(32,32,ILC_COLOR32 | ILC_MASK,1,0);
-
-
-		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_EMPTY));
-		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_RED));
-		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_GREEN));
-		m_pImageList->Add(AfxGetApp()->LoadIcon(IDI_SD_YELLOW));
-
-		m_ListCtrl.SetImageList(m_pImageList,LVSIL_NORMAL);
-	}
-
-	return 0;
 }

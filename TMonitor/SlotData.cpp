@@ -139,7 +139,7 @@ BOOL CMySlotData::AddSlotData( DB_SLOT dbSlot )
 	return TRUE;
 }
 
-BOOL CMySlotData::QueryData( CString strDML,CListCtrl *pList )
+BOOL CMySlotData::QueryData( CString strDML,CListCtrl *pList ,int offset/* = 0*/)
 {
 	if (strDML.IsEmpty() || pList == NULL)
 	{
@@ -160,11 +160,16 @@ BOOL CMySlotData::QueryData( CString strDML,CListCtrl *pList )
 
 				if (col == 0)
 				{
-					pList->InsertItem(nRow,strItem);
+					pList->InsertItem(nRow+offset,strItem);
+
+					if (offset != 0)
+					{
+						pList->SetItemText(nRow,col + offset,strItem);
+					}
 				}
 				else
 				{
-					pList->SetItemText(nRow,col,strItem);
+					pList->SetItemText(nRow,col + offset,strItem);
 				}
 			}
 			query.nextRow();
@@ -344,4 +349,9 @@ int CMySlotData::GetCount( CString strDML )
 	}
 
 	return nCount;
+}
+
+BOOL CMySlotData::IsTableExist( CString strTableName )
+{
+	return s_db.tableExists(strTableName);
 }

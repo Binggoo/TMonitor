@@ -51,7 +51,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\Utils;..\Database;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Binggoo\common;..\Database;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -78,7 +78,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\Utils;..\Database;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Binggoo\common;..\Database;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -109,17 +109,40 @@
     <None Include="res\SD-PASS.ico" />
     <None Include="res\SD-PASS.png" />
     <None Include="res\SD-SPECIAL.ico" />
+    <None Include="res\SD_gray.bmp" />
+    <None Include="res\SD_green.bmp" />
+    <None Include="res\SD_normal.bmp" />
+    <None Include="res\SD_red.bmp" />
+    <None Include="res\SD_yellow.bmp" />
     <None Include="res\TMonitor.ico" />
     <None Include="res\TMonitor.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\Binggoo\common\ProgressCtrlEx.h" />
+    <ClInclude Include="..\..\..\Binggoo\common\Utils.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridColumnTrait.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridColumnTraitCombo.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridColumnTraitDateTime.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridColumnTraitEdit.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridColumnTraitHyperLink.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridColumnTraitImage.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridColumnTraitMultilineEdit.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridColumnTraitText.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridColumnTraitVisitor.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridListCtrlEx.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridListCtrlGroups.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridRowTrait.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridRowTraitText.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridRowTraitVisitor.h" />
+    <ClInclude Include="..\CGridListCtrlEx\CGridRowTraitXP.h" />
+    <ClInclude Include="..\CGridListCtrlEx\ViewConfigSection.h" />
     <ClInclude Include="..\Database\CppSQLite3U.h" />
     <ClInclude Include="..\Database\sqlite3.h" />
-    <ClInclude Include="..\Utils\Utils.h" />
     <ClInclude Include="AlarmDlg.h" />
     <ClInclude Include="ColorListCtrl.h" />
     <ClInclude Include="PageDataReport.h" />
     <ClInclude Include="PageExportSN.h" />
+    <ClInclude Include="SingDevice.h" />
     <ClInclude Include="SlotData.h" />
     <ClInclude Include="excel9.h" />
     <ClInclude Include="Ini.h" />
@@ -137,12 +160,26 @@
     <ClInclude Include="TypeDef.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\Binggoo\common\ProgressCtrlEx.cpp" />
+    <ClCompile Include="..\..\..\Binggoo\common\Utils.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\CGridColumnTraitCombo.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\CGridColumnTraitDateTime.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\CGridColumnTraitEdit.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\CGridColumnTraitHyperLink.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\CGridColumnTraitImage.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\CGridColumnTraitMultilineEdit.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\CGridColumnTraitText.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\CGridListCtrlEx.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\CGridListCtrlGroups.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\CGridRowTraitText.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\CGridRowTraitXP.cpp" />
+    <ClCompile Include="..\CGridListCtrlEx\ViewConfigSection.cpp" />
     <ClCompile Include="..\Database\CppSQLite3U.cpp" />
-    <ClCompile Include="..\Utils\Utils.cpp" />
     <ClCompile Include="AlarmDlg.cpp" />
     <ClCompile Include="ColorListCtrl.cpp" />
     <ClCompile Include="PageDataReport.cpp" />
     <ClCompile Include="PageExportSN.cpp" />
+    <ClCompile Include="SingDevice.cpp" />
     <ClCompile Include="SlotData.cpp" />
     <ClCompile Include="excel9.cpp" />
     <ClCompile Include="Ini.cpp" />

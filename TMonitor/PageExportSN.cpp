@@ -59,7 +59,7 @@ BOOL CPageExportSN::OnInitDialog()
 	m_StartTimeCtrl.SetFormat(_T("yyyy-MM-dd HH:mm:ss"));
 	m_EndTimeCtrl.SetFormat(_T("yyyy-MM-dd HH:mm:ss"));
 
-	CTime timeBegin(0);
+	CTime timeBegin = CTime::GetCurrentTime();
 	CTime timeEnd(3000,12,31,23,59,59);
 	m_StartTimeCtrl.SetTime(&timeBegin);
 	m_EndTimeCtrl.SetTime(&timeEnd);
@@ -181,6 +181,13 @@ void CPageExportSN::OnBnClickedButtonQuery()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	// TODO: 在此添加控件通知处理程序代码
+
+	// 判断表是否存在
+	if (!m_pMySlotData->IsTableExist(TS123_SN_TABLE_NAME))
+	{
+		return;
+	}
+
 	GetDlgItem(IDC_BUTTON_QUERY)->EnableWindow(FALSE);
 	UpdateData(TRUE);
 

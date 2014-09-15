@@ -64,7 +64,7 @@ public:
 	BOOL AddSlotData(DB_SLOT dbSlot);
 	BOOL AddSN(DB_SN_INFO dbSN);
 
-	BOOL QueryData(CString strDML,CListCtrl *pList);
+	BOOL QueryData(CString strDML,CListCtrl *pList,int offset = 0);
 
 	BOOL DeleteData(int nID,CString strTableName);
 
@@ -75,6 +75,8 @@ public:
 	int GetCount(CString strDML);
 
 	BOOL QueryData(CString strDML,CStringArray *pArray);
+
+	BOOL IsTableExist(CString strTableName);
 
 public:
 	static CppSQLite3DB	s_db;		//数据库对象

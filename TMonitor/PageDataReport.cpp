@@ -1,5 +1,6 @@
 // PageDataReport.cpp : 实现文件
 //
+// 2014-09-15 ListCtrl中新增排序、隐藏/显示、编辑功能
 
 #include "stdafx.h"
 #include "TMonitor.h"
@@ -8,6 +9,10 @@
 #include "MyExcel.h"
 #include "Utils.h"
 
+#include "..\CGridListCtrlEx\CGridColumnTraitEdit.h"
+
+#define MACHINE_ID_COLUMN    3
+#define SN_COLUMN            5
 
 // CPageDataReport 对话框
 
@@ -72,7 +77,7 @@ BOOL CPageDataReport::OnInitDialog()
 	m_StartTimeCtrl.SetFormat(_T("yyyy-MM-dd HH:mm:ss"));
 	m_EndTimeCtrl.SetFormat(_T("yyyy-MM-dd HH:mm:ss"));
 
-	CTime timeBegin(0);
+	CTime timeBegin = CTime::GetCurrentTime();
 	CTime timeEnd(3000,12,31,23,59,59);
 	m_StartTimeCtrl.SetTime(&timeBegin);
 	m_EndTimeCtrl.SetTime(&timeEnd);
@@ -148,54 +153,71 @@ void CPageDataReport::ChangeSize( CWnd *pWnd,int cx,int cy )
 
 void CPageDataReport::InitialListCtrl()
 {
+	CGridColumnTrait* pTrait = new CGridColumnTraitEdit;
+
+	// Create Columns
+	m_ListCtrlQuery.InsertHiddenLabelColumn();	// Requires one never uses column 0
+
 	CString strText;
 	int nItem = 0;
 	strText.LoadString(IDS_ID);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,50);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,50);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,50,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_SLOT);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,40);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,40);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,40,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_TYPE);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,40);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,40);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,40,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_MACHINE_ID);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,140);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,140);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,140,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_ALIAS);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,60);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,60);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,60,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_SN);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,100);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,100);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,100,nItem,pTrait);
 	nItem++;
 
 	strText.LoadString(IDS_SIZE_MB);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,80);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,80);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,80,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_FUNCTION);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,100);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,100);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,100,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_START_TIME);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,130);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,130);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,130,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_END_TIME);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,130);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,130);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,130,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_SPEED_MB_S);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,80);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,80);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,80,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_RESULT);
-	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,50);
+//	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,50);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,50,nItem);
 	nItem++;
 
 	m_ListCtrlQuery.SetExtendedStyle(LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT);
@@ -205,6 +227,13 @@ void CPageDataReport::InitialListCtrl()
 void CPageDataReport::OnBnClickedButtonQuery()
 {
 	// TODO: 在此添加控件通知处理程序代码
+
+	// 判断表是否存在
+	if (!m_pMySlotData->IsTableExist(TS123_TABLE_NAME))
+	{
+		return;
+	}
+
 	GetDlgItem(IDC_BUTTON_QUERY)->EnableWindow(FALSE);
 	UpdateData(TRUE);
 
@@ -389,7 +418,7 @@ void CPageDataReport::OnBnClickedButtonQuery()
 
 	strQuery += _T(";");
 
-	m_pMySlotData->QueryData(strQuery,&m_ListCtrlQuery);
+	m_pMySlotData->QueryData(strQuery,&m_ListCtrlQuery,1);
 
 	int nRows = m_ListCtrlQuery.GetItemCount();
 	int nPass = 0,nFail = 0;
@@ -446,7 +475,7 @@ void CPageDataReport::OnBnClickedButtonQueryExport()
 
 	CString strFilter = strText;
 	
-	CFileDialog dlg(FALSE,_T("xls"),NULL,OFN_HIDEREADONLY|OFN_OVERWRITEPROMPT, strFilter,this);
+	CFileDialog dlg(FALSE,_T("xlsx"),NULL,OFN_HIDEREADONLY|OFN_OVERWRITEPROMPT, strFilter,this);
 
 	if(dlg.DoModal() != IDOK) 
 	{
@@ -472,6 +501,7 @@ void CPageDataReport::OnBnClickedButtonQueryExport()
 	}
 
 	MyAlignment Xalign;
+	MyNumberFormat numberFormat;
 
 	//对齐方式
 	Xalign.HorizontalAlignment = xlLeft;
@@ -488,10 +518,10 @@ void CPageDataReport::OnBnClickedButtonQueryExport()
 	lvcol.mask = LVCF_TEXT;
 	lvcol.pszText = szBuffer;
 	lvcol.cchTextMax = 256;
-	int nCol = 0;
+	int nCol = 1; // CGridListCtrlEx第一列是隐藏不用的
 	while (m_ListCtrlQuery.GetColumn(nCol,&lvcol))
 	{
-		myExcel.SetItemText(1,nCol+1,lvcol.pszText);
+		myExcel.SetItemText(1,nCol,lvcol.pszText);
 		nCol++;
 	}
 
@@ -499,9 +529,23 @@ void CPageDataReport::OnBnClickedButtonQueryExport()
 	int nCols = m_ListCtrlQuery.GetHeaderCtrl()->GetItemCount();
 	for (int row = 0; row < nRows;row++)
 	{
-		for (int col = 0;col < nCols;col++)
+		for (int col = 1;col < nCols;col++)
 		{
-			myExcel.SetItemText(row+2,col+1,m_ListCtrlQuery.GetItemText(row,col));
+			if (col == MACHINE_ID_COLUMN + 1 || col == SN_COLUMN + 1)
+			{
+				CString strStart;
+				strStart.Format(_T("%c%d"),_T('A') + col - 1,row + 2);
+
+				myExcel.GetRange(strStart,strStart);
+
+				numberFormat.GetText();
+
+				myExcel.SetNumberFormat(numberFormat);
+
+				myExcel.AutoRange();
+			}
+
+			myExcel.SetItemText(row+2,col,m_ListCtrlQuery.GetItemText(row,col));
 		}
 	}
 

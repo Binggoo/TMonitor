@@ -8,6 +8,7 @@
 #include "MyExcel.h"
 #include "Utils.h"
 
+#define SN_COLUMN 2
 
 // CPageList 对话框
 
@@ -431,6 +432,7 @@ void CPageList::OnBnClickedButtonExport()
 	}
 
 	MyAlignment Xalign;
+	MyNumberFormat numberFormat;
 
 	//对齐方式
 	Xalign.HorizontalAlignment = xlLeft;
@@ -460,6 +462,20 @@ void CPageList::OnBnClickedButtonExport()
 	{
 		for (int col = 0;col < nCols;col++)
 		{
+			if (col == SN_COLUMN)
+			{
+				CString strStart;
+				strStart.Format(_T("%c%d"),_T('A') + col,row + 2);
+
+				myExcel.GetRange(strStart,strStart);
+
+				numberFormat.GetText();
+
+				myExcel.SetNumberFormat(numberFormat);
+
+				myExcel.AutoRange();
+			}
+
 			myExcel.SetItemText(row+2,col+1,m_ListCtrl.GetItemText(row,col));
 		}
 	}

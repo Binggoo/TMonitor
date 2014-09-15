@@ -3,6 +3,8 @@
 #include "afxcmn.h"
 #include "SlotData.h"
 
+#include "..\CGridListCtrlEx\CGridListCtrlEx.h"
+
 // CPageDataReport ¶Ô»°¿ò
 
 class CPageDataReport : public CDialogEx
@@ -33,7 +35,7 @@ private:
 	CString m_strEditResult;
 	CString m_strEditMachineID;
 	CString m_strEditAlias;
-	CListCtrl m_ListCtrlQuery;
+	CGridListCtrlEx m_ListCtrlQuery;
 	BOOL      m_bEnableDel;
 
 	CMySlotData *m_pMySlotData;
