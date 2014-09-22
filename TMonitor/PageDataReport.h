@@ -42,7 +42,7 @@ private:
 
 	enum
 	{
-		COL_ID = 0,
+		COL_ID = 1,
 		COL_SLOT,
 		COL_TYPE,
 		COL_MACHINE_ID,

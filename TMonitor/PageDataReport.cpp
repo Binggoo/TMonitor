@@ -11,8 +11,6 @@
 
 #include "..\CGridListCtrlEx\CGridColumnTraitEdit.h"
 
-#define MACHINE_ID_COLUMN    3
-#define SN_COLUMN            5
 
 // CPageDataReport ¶Ô»°¿ò
 
@@ -531,7 +529,7 @@ void CPageDataReport::OnBnClickedButtonQueryExport()
 	{
 		for (int col = 1;col < nCols;col++)
 		{
-			if (col == MACHINE_ID_COLUMN + 1 || col == SN_COLUMN + 1)
+			if (col == COL_SN || col == COL_MACHINE_ID)
 			{
 				CString strStart;
 				strStart.Format(_T("%c%d"),_T('A') + col - 1,row + 2);
