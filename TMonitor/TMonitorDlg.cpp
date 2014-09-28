@@ -19,6 +19,9 @@
 // v2.0.6.0 2014-09-15 1.修改界面显示，可以抓取卡的插入和拔出状态
 //                     2.数据报表界面中，可以对查询结果进行排序，显示/隐藏项，序列号可编辑
 // v2.0.7.0 2014-09-22 1.解决由于修改数据报表查询导致数据统计出错的问题。
+// v2.0.8.0 2014-09-28 1.界面上显示卡的序列号
+//                     2.每次开始执行拷贝的时候输出机器序列号、分位等信息。
+//                     3.为了让显示的LOG更简洁，显示的LOG记录中不记录Speed、Percent信息。
 
 #include "stdafx.h"
 #include "TMonitor.h"
@@ -1060,7 +1063,14 @@ void CTMonitorDlg::OnReceive()
 			CString strMessage = pStr[i].Trim();
 			if (!strMessage.IsEmpty())
 			{
-				m_PageLog.AppendLogText(strMessage);
+				// Speed 和 Percent不保存
+
+				if (strMessage.Find(_T("#Start speed:")) == -1 
+					&& strMessage.Find(_T("Speed(")) == -1
+					&& strMessage.Find(_T("Percent")) == -1)
+				{
+					m_PageLog.AppendLogText(strMessage);
+				}
 
 				if (strMessage.Find(_T("#BOOTSTART::")) != -1)
 				{
@@ -1068,7 +1078,7 @@ void CTMonitorDlg::OnReceive()
 					continue;
 				}
 
-				if (bBootStart)
+				//if (bBootStart)
 				{
 					int nPos1 = 0,nPos2 = 0;
 
@@ -1095,6 +1105,8 @@ void CTMonitorDlg::OnReceive()
 						strMachineID.Format(strText,m_strMachineID);
 
 						SetDlgItemText(IDC_TEXT_MACHINE_ID,strMachineID);
+
+						m_Machine.SetMachineID(m_strMachineID);
 						continue;
 					}
 
@@ -1137,14 +1149,18 @@ void CTMonitorDlg::OnReceive()
 						nPos2 = strMessage.GetLength();
 						CString strNum = strMessage.Right(nPos2-nPos1);
 						strNum.Trim();
-						m_nSlotCount = _ttoi(strNum);
+						int nSlotCount = _ttoi(strNum);
 
-						if (m_nSlotCount % 4)
+						if (nSlotCount % 4)
 						{
-							m_nSlotCount++;
+							nSlotCount++;
 						}
 						
-						::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_SLOT_COUNT,(WPARAM)m_nSlotCount,0);
+						if (nSlotCount != m_nSlotCount)
+						{
+							m_nSlotCount = nSlotCount;
+							::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_SLOT_COUNT,(WPARAM)m_nSlotCount,0);
+						}
 						
 						continue;
 					}
@@ -1190,9 +1206,12 @@ void CTMonitorDlg::OnReceive()
 				{
 					int nSlotNum = 0;
 					int nCount = 0;
-					CString strSN;
+					CString strSN,strCapacity;
+					ULONG ulCapacitySizeMB = 0;
 					int nPos1 = 0,nPos2 = 0;
 
+					//##S/N(Slot1 Count1):24906EEB Capacity: 1913MB
+					//##S/N(Slot1 Count1):24906EEB
 					nPos1 = strMessage.Find(_T("##S/N(Slot"));
 					if (nPos1 != -1)
 					{
@@ -1209,28 +1228,48 @@ void CTMonitorDlg::OnReceive()
 						strCount.Trim();
 						nCount = _ttoi(strCount);
 
-						nPos1 = nPos2 + 2;
-						nPos2 = strMessage.GetLength();
-						strSN = strMessage.Right(nPos2-nPos1);
-						strSN.Trim();
+						// 有没有Capacity
+						if (strMessage.Find(_T("Capacity:"),nPos2) == -1)
+						{
+							// 获取SN
+							nPos1 = nPos2 + 2;
+							nPos2 = strMessage.GetLength();
+							strSN = strMessage.Right(nPos2-nPos1);
+							strSN.Trim();
+						}
+						else
+						{
+							// 获取SN
+							nPos1 = nPos2+2;
+							nPos2 = strMessage.Find(_T("Capacity:"),nPos2);
+							strSN = strMessage.Mid(nPos1,nPos2-nPos1);
+							strSN.Trim();
+
+							// 获取Capacity
+							nPos1 = nPos2 + 9;
+							nPos2 = strMessage.Find(_T("MB"));
+							strCapacity = strMessage.Mid(nPos1,nPos2 - nPos1);
+							strCapacity.Trim();
+							ulCapacitySizeMB = (ULONG)_ttol(strCapacity);
+						}
 
 						if (m_bCheckForbidSN)
 						{
 							CString strSQL;
 							strSQL.Format(_T("SELECT COUNT(*) FROM %s Where sn='%s';"),TS123_SN_TABLE_NAME,strSN);
-							int nCount = m_SlotData.GetCount(strSQL);
+							int nSNCount = m_SlotData.GetCount(strSQL);
 
-							if (nCount != 0)
+							if (nSNCount != 0)
 							{
 								// 报错，黄灯
-								m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_YELLOW);
+								m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_YELLOW,strSN,(ULONGLONG)ulCapacitySizeMB * 1024 *1024);
 								m_SlotIn.SetAt(nSlotNum,TRUE);
 								PostMessage(WM_SN_REPEATE,(WPARAM)nSlotNum,(LPARAM)SD_YELLOW);
 							}
 							else
 							{
 								// 绿灯
-								m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_GREEN);
+								m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_GREEN,strSN,(ULONGLONG)ulCapacitySizeMB * 1024 *1024);
 
 								DB_SN_INFO dbSN;
 								dbSN.strMachineID = m_strMachineID;
@@ -1243,7 +1282,7 @@ void CTMonitorDlg::OnReceive()
 						else
 						{
 							// 绿灯
-							m_PageDevice.ChangeDeviceStatus(nSlotNum,SD_GREEN);
+							m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_GREEN,strSN,(ULONGLONG)ulCapacitySizeMB * 1024 *1024);
 
 							DB_SN_INFO dbSN;
 							dbSN.strMachineID = m_strMachineID;
@@ -1256,6 +1295,7 @@ void CTMonitorDlg::OnReceive()
 						continue;
 					}
 
+					//##Remove card:1
 					nPos1 = strMessage.Find(_T("##Remove card:"));
 					if (nPos1 != -1)
 					{
@@ -1266,13 +1306,14 @@ void CTMonitorDlg::OnReceive()
 						nSlotNum = _ttoi(strSlotNum);
 
 						// 灭灯
-						m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_GRAY);
+						m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_GRAY,strSN,0);
 
 						m_SlotIn.SetAt(nSlotNum,FALSE);
 
 						continue;
 					}
 
+					//##Bad card:1
 					nPos1 = strMessage.Find(_T("##Bad card:"));
 					if (nPos1 != -1)
 					{
@@ -1283,7 +1324,7 @@ void CTMonitorDlg::OnReceive()
 						nSlotNum = _ttoi(strSlotNum);
 
 						// 红灯
-						m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_RED);
+						m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_RED,strSN,0);
 						m_SlotIn.SetAt(nSlotNum,TRUE);
 
 						PostMessage(WM_SN_REPEATE,(WPARAM)nSlotNum,(LPARAM)SD_RED);
@@ -1295,43 +1336,80 @@ void CTMonitorDlg::OnReceive()
 				}
 				else
 				{
+					CString strSN,strCapacity,strSlotNum;
+					ULONG ulCapacitySizeMB = 0;
+					int nSlotNum = 0;
+					int nPos1 = 0,nPos2 = 0;
 					// 检测插卡
+					// ##Insert card:1
 					if (strMessage.Find(_T("##Insert card")) != -1 )
 					{
-						int nSlotNum = 0;
-						int nPos1 = 0,nPos2 = 0;
 						nPos1 = strMessage.Find(_T("##Insert card:"));
 						nPos2 = strMessage.Find(_T(":"),nPos1);
 
 						if (nPos2 != -1)
 						{
-							CString strSlotNum = strMessage.Mid(nPos2 + 1);
+							strSlotNum = strMessage.Mid(nPos2 + 1);
 
 							strSlotNum.Trim();
 
 							nSlotNum = _ttoi(strSlotNum);
 
-							m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_NORMAL);
+							m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_NORMAL,strSN,0);
 						}
 					}
 
+					//##Card( 1) S/N:24906EEB Capacity: 1913MB
+					if (strMessage.Find(_T("##Card")) != -1)
+					{
+						// 获取SlotNum
+						nPos1 = strMessage.Find(_T("(")) + 1;
+						nPos2 = strMessage.Find(_T(")"));
+
+						strSlotNum = strMessage.Mid(nPos1,nPos2-nPos1);
+						strSlotNum.Trim();
+
+						nSlotNum = _ttoi(strSlotNum);
+						
+						// 获取SN
+						nPos1 = strMessage.Find(_T("S/N:"),nPos2);
+						nPos2 = strMessage.Find(_T("Capacity:"),nPos2);
+						if (nPos1 != -1 && nPos2 != -1)
+						{
+							nPos1 += 4;
+							strSN = strMessage.Mid(nPos1,nPos2 - nPos1);
+							strSN.Trim();
+						}
+
+						// 获取Capacity
+						if (nPos2 != -1)
+						{
+							nPos1 = nPos2 + 9;
+							nPos2 = strMessage.Find(_T("MB"));
+							strCapacity = strMessage.Mid(nPos1,nPos2 - nPos1);
+							strCapacity.Trim();
+							ulCapacitySizeMB = (ULONG)_ttol(strCapacity);
+						}
+
+						m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_NORMAL,strSN,(ULONGLONG)ulCapacitySizeMB*1024*1024);
+					}
+
 					// 检测拔卡
+					// ##Remove card:1
 					if (strMessage.Find(_T("##Remove card")) != -1)
 					{
-						int nSlotNum = 0;
-						int nPos1 = 0,nPos2 = 0;
 						nPos1 = strMessage.Find(_T("##Remove card:"));
 						nPos2 = strMessage.Find(_T(":"),nPos1);
 
 						if (nPos2 != -1)
 						{
-							CString strSlotNum = strMessage.Mid(nPos2 + 1);
+							strSlotNum = strMessage.Mid(nPos2 + 1);
 
 							strSlotNum.Trim();
 
 							nSlotNum = _ttoi(strSlotNum);
 
-							m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_GRAY);
+							m_PageDevice.ChangeDeviceStatus(nSlotNum,IDB_SD_GRAY,strSN,0);
 						}
 					}
 				}
@@ -1591,22 +1669,26 @@ afx_msg LRESULT CTMonitorDlg::OnUpdateResult(WPARAM wParam, LPARAM lParam)
 	dbSlot.strMachineID = m_Machine.GetMachineID();
 	dbSlot.strAlias = m_Machine.GetAlias();
 
-	Slot_List slotList;
-	m_Machine.GetSlotList(slotList);
-	POSITION pos = slotList.GetHeadPosition();
+	Slot_List *slotList;
+	slotList = m_Machine.GetSlotList();
+	POSITION pos = slotList->GetHeadPosition();
 	while (pos)
 	{
-		SLOT_INFO slotInfo = slotList.GetNext(pos);
+		PSLOT_INFO slotInfo = slotList->GetNext(pos);
 
-		dbSlot.iSlot = slotInfo.nSlotNum;
-		dbSlot.strType = (slotInfo.slotType == SlotType_SRC) ? _T("M") : _T("T");
-		dbSlot.strSN = slotInfo.strSN;
-		dbSlot.ulSizeMB = slotInfo.ulCapacityMB;
-		dbSlot.dbSpeed = slotInfo.dbSpeed;
-		dbSlot.iPercent = slotInfo.nPercent;
-		dbSlot.strResult = (slotInfo.bResult) ? _T("PASS") : _T("FAIL");
+		if (slotInfo)
+		{
+			dbSlot.iSlot = slotInfo->nSlotNum;
+			dbSlot.strType = (slotInfo->slotType == SlotType_SRC) ? _T("M") : _T("T");
+			dbSlot.strSN = slotInfo->strSN;
+			dbSlot.ulSizeMB = slotInfo->ulCapacityMB;
+			dbSlot.dbSpeed = slotInfo->dbSpeed;
+			dbSlot.iPercent = slotInfo->nPercent;
+			dbSlot.strResult = (slotInfo->bResult) ? _T("PASS") : _T("FAIL");
 
-		m_SlotData.AddSlotData(dbSlot);
+			m_SlotData.AddSlotData(dbSlot);
+		}
+		
 	}
 
 	return 0;

@@ -127,8 +127,7 @@ afx_msg LRESULT CPageList::OnInitDevice(WPARAM wParam, LPARAM lParam)
 	GetDlgItem(IDC_BUTTON_CLEAR)->EnableWindow(FALSE);
 	GetDlgItem(IDC_BUTTON_EXPORT)->EnableWindow(FALSE);
 
-	Slot_List slotList;
-	m_pMachine->GetSlotList(slotList);
+	Slot_List *slotList = m_pMachine->GetSlotList();
 	
 	int nItem = m_ListCtrl.GetItemCount();
 
@@ -138,18 +137,18 @@ afx_msg LRESULT CPageList::OnInitDevice(WPARAM wParam, LPARAM lParam)
 		nItem++;
 	}
 
-	POSITION pos = slotList.GetHeadPosition();
+	POSITION pos = slotList->GetHeadPosition();
 	while (pos)
 	{
-		SLOT_INFO slotInfo = slotList.GetNext(pos);
+		PSLOT_INFO slotInfo = slotList->GetNext(pos);
 		CString strItem;
 
 		// Slot Num
-		strItem.Format(_T("%d"),slotInfo.nSlotNum);
+		strItem.Format(_T("%d"),slotInfo->nSlotNum);
 		m_ListCtrl.InsertItem(nItem,strItem);
 		
 		// Slot Type
-		if (slotInfo.slotType == SlotType_SRC)
+		if (slotInfo->slotType == SlotType_SRC)
 		{
 			strItem = _T("M");
 		}
@@ -160,11 +159,11 @@ afx_msg LRESULT CPageList::OnInitDevice(WPARAM wParam, LPARAM lParam)
 		m_ListCtrl.SetItemText(nItem,1,strItem);
 
 		// SN
-		strItem = slotInfo.strSN;
+		strItem = slotInfo->strSN;
 		m_ListCtrl.SetItemText(nItem,2,strItem);
 
 		// CapacitySize
-		strItem.Format(_T("%ld"),slotInfo.ulCapacityMB);
+		strItem.Format(_T("%ld"),slotInfo->ulCapacityMB);
 		m_ListCtrl.SetItemText(nItem,3,strItem);
 
 		// Function
@@ -180,11 +179,11 @@ afx_msg LRESULT CPageList::OnInitDevice(WPARAM wParam, LPARAM lParam)
 		m_ListCtrl.SetItemText(nItem,6,strItem);
 
 		// Speed
-		strItem.Format(_T("%.1f"),slotInfo.dbSpeed);
+		strItem.Format(_T("%.1f"),slotInfo->dbSpeed);
 		m_ListCtrl.SetItemText(nItem,7,strItem);
 
 		// Percent
-		strItem.Format(_T("%d%%"),slotInfo.nPercent);
+		strItem.Format(_T("%d%%"),slotInfo->nPercent);
 		m_ListCtrl.SetItemText(nItem,8,strItem);
 
 		// Result
@@ -271,27 +270,26 @@ void CPageList::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
 
-	Slot_List slotList;
-	m_pMachine->GetSlotList(slotList);
+	Slot_List *slotList = m_pMachine->GetSlotList();
 
-	POSITION pos = slotList.GetHeadPosition();
+	POSITION pos = slotList->GetHeadPosition();
 	int nItem = m_ListCtrl.GetItemCount() - m_pMachine->GetSlotCount();
 
 	if (m_pMachine->IsRunning())
 	{
 		while (pos)
 		{
-			SLOT_INFO slotInfo = slotList.GetNext(pos);
+			PSLOT_INFO slotInfo = slotList->GetNext(pos);
 			CString strItem;
 
-			if (slotInfo.bResult)
+			if (slotInfo->bResult)
 			{
 				// Speed	
-				strItem.Format(_T("%.1f MB/s"),slotInfo.dbSpeed);
+				strItem.Format(_T("%.1f MB/s"),slotInfo->dbSpeed);
 				m_ListCtrl.SetItemText(nItem,7,strItem);
 
 				// Percent
-				strItem.Format(_T("%d%%"),slotInfo.nPercent);
+				strItem.Format(_T("%d%%"),slotInfo->nPercent);
 				m_ListCtrl.SetItemText(nItem,8,strItem);
 			}
 			else
@@ -311,7 +309,7 @@ void CPageList::OnTimer(UINT_PTR nIDEvent)
 
 		while (pos)
 		{
-			SLOT_INFO slotInfo = slotList.GetNext(pos);
+			PSLOT_INFO slotInfo = slotList->GetNext(pos);
 			CString strItem;
 
 
@@ -320,14 +318,14 @@ void CPageList::OnTimer(UINT_PTR nIDEvent)
 			m_ListCtrl.SetItemText(nItem,6,strItem);
 
 			// Speed	
-			strItem.Format(_T("%.1f"),slotInfo.dbSpeed);
+			strItem.Format(_T("%.1f"),slotInfo->dbSpeed);
 			m_ListCtrl.SetItemText(nItem,7,strItem);
 
 			// Percent
-			strItem.Format(_T("%d%%"),slotInfo.nPercent);
+			strItem.Format(_T("%d%%"),slotInfo->nPercent);
 			m_ListCtrl.SetItemText(nItem,8,strItem);
 
-			if (slotInfo.bResult)
+			if (slotInfo->bResult)
 			{
 				m_ListCtrl.SetItemText(nItem,9,_T("PASS"));
 			}

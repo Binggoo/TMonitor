@@ -5,67 +5,69 @@
 CMachineInfo::CMachineInfo(void)
 {
 	m_bRunning = FALSE;
+	m_pSlotList = new Slot_List;
 }
 
 
 CMachineInfo::~CMachineInfo(void)
 {
 	Reset();
+	delete m_pSlotList;
 }
 
 void CMachineInfo::AddSlot( int nSlotNum,CString strSN,ULONG ulCapacitySizeMB )
 {
-	SLOT_INFO slotInfo;
-	slotInfo.nSlotNum = nSlotNum;
+	PSLOT_INFO slotInfo = new SLOT_INFO();
+	slotInfo->nSlotNum = nSlotNum;
 	if (nSlotNum == 0)
 	{
-		slotInfo.slotType = SlotType_SRC;
+		slotInfo->slotType = SlotType_SRC;
 	}
 	else
 	{
-		slotInfo.slotType = SlotType_TRG;
+		slotInfo->slotType = SlotType_TRG;
 	}
-	slotInfo.slotState = SlotState_Online;
+	slotInfo->slotState = SlotState_Online;
 
-	slotInfo.strSN = strSN;
-	slotInfo.ulCapacityMB = ulCapacitySizeMB;
-	slotInfo.dbSpeed = 0.0;
-	slotInfo.nPercent = 0;
-	slotInfo.bResult = TRUE;
+	slotInfo->strSN = strSN;
+	slotInfo->ulCapacityMB = ulCapacitySizeMB;
+	slotInfo->dbSpeed = 0.0;
+	slotInfo->nPercent = 0;
+	slotInfo->bResult = TRUE;
 
-	m_SlotList.AddTail(slotInfo);
+	m_pSlotList->AddTail(slotInfo);
 }
 
 void CMachineInfo::AddSlot( int nSlotNum,CString strSN,ULONG ulCapacitySizeMB,double dbSpeed,int iPercent,BOOL bResult )
 {
-	SLOT_INFO slotInfo;
-	slotInfo.nSlotNum = nSlotNum;
+	PSLOT_INFO slotInfo = new SLOT_INFO();
+	slotInfo->nSlotNum = nSlotNum;
 	if (nSlotNum == 0)
 	{
-		slotInfo.slotType = SlotType_SRC;
+		slotInfo->slotType = SlotType_SRC;
 	}
 	else
 	{
-		slotInfo.slotType = SlotType_TRG;
+		slotInfo->slotType = SlotType_TRG;
 	}
-	slotInfo.slotState = SlotState_Online;
+	slotInfo->slotState = SlotState_Online;
 
-	slotInfo.strSN = strSN;
-	slotInfo.ulCapacityMB = ulCapacitySizeMB;
-	slotInfo.dbSpeed = dbSpeed;
-	slotInfo.nPercent = iPercent;
-	slotInfo.bResult = bResult;
+	slotInfo->strSN = strSN;
+	slotInfo->ulCapacityMB = ulCapacitySizeMB;
+	slotInfo->dbSpeed = dbSpeed;
+	slotInfo->nPercent = iPercent;
+	slotInfo->bResult = bResult;
 
-	m_SlotList.AddTail(slotInfo);
+	m_pSlotList->AddTail(slotInfo);
 }
 
 void CMachineInfo::UpdateSlotSpeed( int nSlotNum,double dbSpeed )
 {
 	m_cs.Lock();
-	POSITION pos = m_SlotList.GetHeadPosition();
+	POSITION pos = m_pSlotList->GetHeadPosition();
 	while (pos)
 	{
-		SLOT_INFO *pSlot = &m_SlotList.GetNext(pos);
+		SLOT_INFO *pSlot = m_pSlotList->GetNext(pos);
 
 		if (pSlot->nSlotNum == nSlotNum)
 		{
@@ -79,10 +81,10 @@ void CMachineInfo::UpdateSlotSpeed( int nSlotNum,double dbSpeed )
 void CMachineInfo::UpdateSlotResult( int nSlotNum,BOOL bResult )
 {
 	m_cs.Lock();
-	POSITION pos = m_SlotList.GetHeadPosition();
+	POSITION pos = m_pSlotList->GetHeadPosition();
 	while (pos)
 	{
-		SLOT_INFO *pSlot = &m_SlotList.GetNext(pos);
+		SLOT_INFO *pSlot = m_pSlotList->GetNext(pos);
 
 		if (pSlot->nSlotNum == nSlotNum)
 		{
@@ -102,10 +104,10 @@ void CMachineInfo::UpdateSlotResult( int nSlotNum,BOOL bResult )
 void CMachineInfo::UpdateSlotPercent( int nSlotNum,int nPercent )
 {
 	m_cs.Lock();
-	POSITION pos = m_SlotList.GetHeadPosition();
+	POSITION pos = m_pSlotList->GetHeadPosition();
 	while (pos)
 	{
-		SLOT_INFO *pSlot = &m_SlotList.GetNext(pos);
+		SLOT_INFO *pSlot = m_pSlotList->GetNext(pos);
 
 		if (pSlot->nSlotNum == nSlotNum)
 		{
@@ -117,14 +119,9 @@ void CMachineInfo::UpdateSlotPercent( int nSlotNum,int nPercent )
 }
 
 
-void CMachineInfo::GetSlotList( Slot_List &slotList )
+Slot_List *CMachineInfo::GetSlotList( )
 {
-	slotList.RemoveAll();
-	POSITION pos = m_SlotList.GetHeadPosition();
-	while (pos)
-	{
-		slotList.AddTail(m_SlotList.GetNext(pos));
-	}
+	return m_pSlotList;
 }
 
 void CMachineInfo::SetStartTime( CTime time )
@@ -161,42 +158,63 @@ CString CMachineInfo::GetFunction()
 
 int CMachineInfo::GetSlotCount()
 {
-	return m_SlotList.GetCount();
+	return m_pSlotList->GetCount();
 }
 
 void CMachineInfo::GetSlotNum( CByteArray &slotArray )
 {
 	slotArray.RemoveAll();
 
-	POSITION pos = m_SlotList.GetHeadPosition();
+	POSITION pos = m_pSlotList->GetHeadPosition();
 	while (pos)
 	{
-		SLOT_INFO slotInfo = m_SlotList.GetNext(pos);
-		slotArray.Add((BYTE)slotInfo.nSlotNum);
+		PSLOT_INFO slotInfo = m_pSlotList->GetNext(pos);
+
+		if (slotInfo)
+		{
+			slotArray.Add((BYTE)slotInfo->nSlotNum);
+		}	
 	}
 }
 
-SLOT_INFO CMachineInfo::GetSlotInfo( int nSlotNum )
+PSLOT_INFO CMachineInfo::GetSlotInfo( int nSlotNum )
 {
-	POSITION pos = m_SlotList.GetHeadPosition();
+	POSITION pos = m_pSlotList->GetHeadPosition();
 
-	SLOT_INFO slotInfo;
+	PSLOT_INFO slotInfo = NULL;
 	while (pos)
 	{
-		slotInfo = m_SlotList.GetNext(pos);
+		slotInfo = m_pSlotList->GetNext(pos);
 		
-		if (slotInfo.nSlotNum == nSlotNum)
+		if (slotInfo)
 		{
-			break;
+			if (slotInfo->nSlotNum == nSlotNum)
+			{
+				return slotInfo;
+			}
 		}
+		
 	}
 
-	return slotInfo;
+	return NULL;
 }
 
 void CMachineInfo::Reset()
 {
-	m_SlotList.RemoveAll();
+	POSITION pos = m_pSlotList->GetHeadPosition();
+
+	while (pos)
+	{
+		PSLOT_INFO slotInfo = m_pSlotList->GetNext(pos);
+
+		if (slotInfo != NULL)
+		{
+			delete slotInfo;
+			slotInfo = NULL;
+		}
+	}
+
+	m_pSlotList->RemoveAll();
 	m_strFunction = _T("");
 	m_StartTime = 0;
 	m_EndTime = 0;
@@ -218,21 +236,21 @@ BOOL CMachineInfo::IsRunning()
 double CMachineInfo::GetAvgSpeed()
 {
 	m_cs.Lock();
-	POSITION pos = m_SlotList.GetHeadPosition();
+	POSITION pos = m_pSlotList->GetHeadPosition();
 	double dbSpeed = 0.0;
 	int nPass = 0;
 	while (pos)
 	{
-		SLOT_INFO slotInfo = m_SlotList.GetNext(pos);
+		PSLOT_INFO slotInfo = m_pSlotList->GetNext(pos);
 
-		if (slotInfo.nSlotNum == 0)
+		if (slotInfo->nSlotNum == 0)
 		{
 			continue;
 		}
 
-		if (slotInfo.bResult)
+		if (slotInfo->bResult)
 		{
-			dbSpeed += slotInfo.dbSpeed;
+			dbSpeed += slotInfo->dbSpeed;
 
 			nPass++;
 		}
@@ -253,21 +271,21 @@ double CMachineInfo::GetAvgSpeed()
 int CMachineInfo::GetAvgPercent()
 {
 	m_cs.Lock();
-	POSITION pos = m_SlotList.GetHeadPosition();
+	POSITION pos = m_pSlotList->GetHeadPosition();
 	int nPercent  = 0;
 	int nPass = 0;
 	while (pos)
 	{
-		SLOT_INFO slotInfo = m_SlotList.GetNext(pos);
+		PSLOT_INFO slotInfo = m_pSlotList->GetNext(pos);
 
-		if (slotInfo.nSlotNum == 0)
+		if (slotInfo->nSlotNum == 0)
 		{
 			continue;
 		}
 
-		if (slotInfo.bResult)
+		if (slotInfo->bResult)
 		{
-			nPercent += slotInfo.nPercent;
+			nPercent += slotInfo->nPercent;
 			nPass++;
 		}
 		
@@ -286,16 +304,23 @@ int CMachineInfo::GetAvgPercent()
 
 int CMachineInfo::GetSlowestSlot()
 {
-	int nSlowestSlot = m_SlotList.GetHead().nSlotNum;
-	double dbSpeed = m_SlotList.GetHead().dbSpeed;
-	POSITION pos = m_SlotList.GetHeadPosition();
+	if (m_pSlotList->GetCount() == 0)
+	{
+		return -1;
+	}
+
+	PSLOT_INFO pHead = m_pSlotList->GetHead();
+
+	int nSlowestSlot = pHead->nSlotNum;
+	double dbSpeed = m_pSlotList->GetHead()->dbSpeed;
+	POSITION pos = m_pSlotList->GetHeadPosition();
 	while (pos)
 	{
-		SLOT_INFO slotInfo = m_SlotList.GetNext(pos);
+		PSLOT_INFO slotInfo = m_pSlotList->GetNext(pos);
 
-		if (slotInfo.dbSpeed < dbSpeed)
+		if (slotInfo->dbSpeed < dbSpeed)
 		{
-			nSlowestSlot = slotInfo.nSlotNum;
+			nSlowestSlot = slotInfo->nSlotNum;
 		}
 	}
 

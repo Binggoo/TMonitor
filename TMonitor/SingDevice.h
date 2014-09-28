@@ -24,8 +24,8 @@ public:
 
 	void SetDevicePort(int nPortNum);
 	void Intial();
-	void SetDeviceState(UINT nBitmap,ULONGLONG ullCapacity,double dbSpeed,int percent);
-	void SetBitmap(UINT nBitmap);
+	void SetDeviceState(UINT nBitmap,ULONGLONG ullCapacity,double dbSpeed,int percent,CString strSN);
+	void SetBitmap(UINT nBitmap,CString strSN,ULONGLONG ullCapacity);
 
 private:
 	CStatic m_PicDevice;

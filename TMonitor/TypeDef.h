@@ -24,8 +24,21 @@ typedef struct _STRUCT_SLOT_INFO
 	double   dbSpeed;
 	int      nPercent;
 	BOOL     bResult;
-}SLOT_INFO;
 
-typedef CList<SLOT_INFO,SLOT_INFO&> Slot_List;
+	_STRUCT_SLOT_INFO()
+	{
+		nSlotNum = 0;
+		slotType = SlotType_SRC;
+		slotState = SlotState_Offline;
+		strSN = _T("");
+		ulCapacityMB = 0;
+		dbSpeed = 0.0;
+		nPercent = 0;
+		bResult = FALSE;
+	}
+
+}SLOT_INFO,*PSLOT_INFO;
+
+typedef CList<PSLOT_INFO,PSLOT_INFO> Slot_List;
 
 #endif

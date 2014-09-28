@@ -115,13 +115,14 @@ void CSingDevice::Intial()
 
 	SetDlgItemText(IDC_TEXT_SPEED,_T(""));
 	SetDlgItemText(IDC_TEXT_SIZE,_T(""));
+	SetDlgItemText(IDC_TEXT_SN,_T(""));
 
 	m_Progress.SetPos(0);
 
 	Invalidate(TRUE);
 }
 
-void CSingDevice::SetDeviceState( UINT nBitmap,ULONGLONG ullCapacity,double dbSpeed,int percent )
+void CSingDevice::SetDeviceState( UINT nBitmap,ULONGLONG ullCapacity,double dbSpeed,int percent,CString strSN )
 {
 	if (m_nBitmap != nBitmap)
 	{
@@ -141,9 +142,11 @@ void CSingDevice::SetDeviceState( UINT nBitmap,ULONGLONG ullCapacity,double dbSp
 	strSpeed.Format(_T("%dMB/s"),(int)dbSpeed);
 	SetDlgItemText(IDC_TEXT_SPEED,strSpeed);
 	m_Progress.SetPos(percent);
+
+	SetDlgItemText(IDC_TEXT_SN,strSN);
 }
 
-void CSingDevice::SetBitmap( UINT nBitmap )
+void CSingDevice::SetBitmap( UINT nBitmap ,CString strSN,ULONGLONG ullCapacity)
 {
 	if (m_nBitmap != nBitmap)
 	{
@@ -156,11 +159,22 @@ void CSingDevice::SetBitmap( UINT nBitmap )
 
 		m_Bitmap.LoadBitmap(m_nBitmap);
 		m_PicDevice.SetBitmap(m_Bitmap);
-
-		SetDlgItemText(IDC_TEXT_SPEED,_T(""));
-		SetDlgItemText(IDC_TEXT_SIZE,_T(""));
-
-		m_Progress.SetPos(0);
 	}
+
+	SetDlgItemText(IDC_TEXT_SPEED,_T(""));
+
+	if (ullCapacity == 0)
+	{
+		SetDlgItemText(IDC_TEXT_SIZE,_T(""));
+	}
+	else
+	{
+		SetDlgItemText(IDC_TEXT_SIZE,CUtils::AdjustFileSize(ullCapacity));
+	}
+
+
+	SetDlgItemText(IDC_TEXT_SN,strSN);
+
+	m_Progress.SetPos(0);
 }
 

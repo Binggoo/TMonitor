@@ -14,7 +14,7 @@ public:
 	void UpdateSlotSpeed(int nSlotNum,double dbSpeed);
 	void UpdateSlotResult(int nSlotNum,BOOL bResult);
 	void UpdateSlotPercent(int nSlotNum,int nPercent);
-	void GetSlotList(Slot_List &slotList);
+	Slot_List *GetSlotList();
 	void SetStartTime(CTime time);
 	CTime GetStartTime();
 	void SetEndTime(CTime time);
@@ -32,7 +32,7 @@ public:
 
 	int GetSlotCount();
 	void GetSlotNum(CByteArray &slotArray);
-	SLOT_INFO GetSlotInfo(int nSlotNum);
+	PSLOT_INFO GetSlotInfo(int nSlotNum);
 	void SetRunning(BOOL bRunning);
 	BOOL IsRunning();
 
@@ -40,7 +40,7 @@ public:
 
 	void Reset();
 private:
-	Slot_List m_SlotList;
+	Slot_List *m_pSlotList;
 	CTime m_StartTime;
 	CTime m_EndTime;
 	CString m_strFunction;

@@ -143,6 +143,7 @@ void CPageDevice::OnSize(UINT nType, int cx, int cy)
 void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
+
 	CString strText;
 
 	CByteArray byteArray;
@@ -182,9 +183,9 @@ void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 		{
 			int nSlot =  byteArray.GetAt(i);
 
-			SLOT_INFO slotInfo = m_pMachine->GetSlotInfo(nSlot);
+			PSLOT_INFO slotInfo = m_pMachine->GetSlotInfo(nSlot);
 
-			if (slotInfo.bResult)
+			if (slotInfo->bResult)
 			{
 				nActive++;
 
@@ -206,7 +207,7 @@ void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 				nBitmap = IDB_SD_RED;
 			}
 
-			m_Devices[nSlot].SetDeviceState(nBitmap,(ULONGLONG)slotInfo.ulCapacityMB * 1024 * 1024,slotInfo.dbSpeed,slotInfo.nPercent);
+			m_Devices[nSlot].SetDeviceState(nBitmap,(ULONGLONG)slotInfo->ulCapacityMB * 1024 * 1024,slotInfo->dbSpeed,slotInfo->nPercent,slotInfo->strSN);
 			
 		}
 
@@ -221,9 +222,9 @@ void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 			int nSlot =  byteArray.GetAt(i);
 			
 
-			SLOT_INFO slotInfo = m_pMachine->GetSlotInfo(nSlot);
+			PSLOT_INFO slotInfo = m_pMachine->GetSlotInfo(nSlot);
 
-			if (slotInfo.bResult)
+			if (slotInfo->bResult)
 			{
 				nBitmap = IDB_SD_GREEN;
 				nPass++;
@@ -234,7 +235,7 @@ void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 				nFail++;
 			}
 
-			m_Devices[nSlot].SetDeviceState(nBitmap,(ULONGLONG)slotInfo.ulCapacityMB * 1024 * 1024,slotInfo.dbSpeed,slotInfo.nPercent);
+			m_Devices[nSlot].SetDeviceState(nBitmap,(ULONGLONG)slotInfo->ulCapacityMB * 1024 * 1024,slotInfo->dbSpeed,slotInfo->nPercent,slotInfo->strSN);
 		}
 
 		CString strEndTime,strSpendTime;
@@ -445,9 +446,9 @@ void CPageDevice::IntialSingDevices()
 	}
 }
 
-void CPageDevice::ChangeDeviceStatus( int nSlot,UINT nBitmap )
+void CPageDevice::ChangeDeviceStatus( int nSlot,UINT nBitmap ,CString strSN,ULONGLONG ullCapacity)
 {
-	m_Devices[nSlot].SetBitmap(nBitmap);
+	m_Devices[nSlot].SetBitmap(nBitmap,strSN,ullCapacity);
 }
 
 void CPageDevice::Reset()

@@ -48,7 +48,7 @@ public:
 
 	void SetMachineInfo(CMachineInfo *pMachine);
 
-	void ChangeDeviceStatus(int nSlot,UINT nBitmap);
+	void ChangeDeviceStatus(int nSlot,UINT nBitmap,CString strSN,ULONGLONG ullCapacity);
 	void Reset();
 
 	afx_msg void OnSize(UINT nType, int cx, int cy);
