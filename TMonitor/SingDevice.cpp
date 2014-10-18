@@ -65,17 +65,19 @@ BOOL CSingDevice::OnInitDialog()
 	// 异常: OCX 属性页应返回 FALSE
 }
 
-void CSingDevice::ChangeSize( CWnd *pWnd,int cx, int cy )
+void CSingDevice::ChangeSize( CWnd *pWnd,int cx, int cy)
 {
 	if (pWnd)
 	{
 		CRect rect;
 		pWnd->GetWindowRect(&rect);
 		ScreenToClient(&rect);
-		rect.left=rect.left*cx/m_Rect.Width();
+	
+		//rect.left=rect.left*cx/m_Rect.Width();
 		rect.right=rect.right*cx/m_Rect.Width();
 		rect.top=rect.top*cy/m_Rect.Height();
 		rect.bottom=rect.bottom*cy/m_Rect.Height();
+
 		pWnd->MoveWindow(rect);
 	}
 }
@@ -89,7 +91,11 @@ void CSingDevice::OnSize(UINT nType, int cx, int cy)
 	CWnd *pWnd = GetWindow(GW_CHILD);
 	while (pWnd)
 	{
-		ChangeSize(pWnd,cx,cy);
+		if (pWnd->GetDlgCtrlID() != IDC_PIC_DEVICE)
+		{
+			ChangeSize(pWnd,cx,cy);
+		}
+		
 		pWnd = pWnd->GetWindow(GW_HWNDNEXT);
 	}
 

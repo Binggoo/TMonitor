@@ -22,6 +22,12 @@
 // v2.0.8.0 2014-09-28 1.界面上显示卡的序列号
 //                     2.每次开始执行拷贝的时候输出机器序列号、分位等信息。
 //                     3.为了让显示的LOG更简洁，显示的LOG记录中不记录Speed、Percent信息。
+// v2.0.9.0 2014-10-13 1.解决程序未用管理员权限打开，关闭程序时报参数错误的问题。
+//                     2.当检测到设备是TS-147时，程序自动最大化显示。
+//                     3.界面调整。
+// v2.1.0.0 2014-10-15 1.界面语言可以在配置文件中配置，如果不配置则默认根据系统语言来选择
+//                     2.新增机器型号选择功能，根据型号显示对应画面
+// v2.1.1.0 2014-10-18 1.新增手动选择破特率功能，兼容波特率高的机种。
 
 #include "stdafx.h"
 #include "TMonitor.h"
@@ -123,6 +129,8 @@ void CTMonitorDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_CHECK_DATE, m_bCheckDate);
 	DDX_Check(pDX, IDC_CHECK_TIME, m_bCheckTime);
 	DDX_Control(pDX, IDC_COMBO_COM, m_comboCom);
+	DDX_Control(pDX, IDC_COMBO_MODULE, m_comboModel);
+	DDX_Control(pDX, IDC_COMBO_BAUDRATE, m_comboBaudRate);
 	DDX_Check(pDX, IDC_CHECK_DISABLE_SN_REPEAT, m_bCheckForbidSN);
 }
 
@@ -149,6 +157,8 @@ BEGIN_MESSAGE_MAP(CTMonitorDlg, CDialogEx)
 	ON_WM_SIZE()
 	ON_MESSAGE(WM_UPDATE_RESULT, &CTMonitorDlg::OnUpdateResult)
 	ON_MESSAGE(WM_SN_REPEATE, &CTMonitorDlg::OnSnRepeate)
+	ON_CBN_SELCHANGE(IDC_COMBO_MODULE, &CTMonitorDlg::OnCbnSelchangeComboModule)
+	ON_CBN_EDITCHANGE(IDC_COMBO_BAUDRATE, &CTMonitorDlg::OnCbnEditchangeComboBaudrate)
 END_MESSAGE_MAP()
 
 
@@ -217,6 +227,7 @@ BOOL CTMonitorDlg::OnInitDialog()
 	strLocation.Trim();
 	CString strSerialPort = m_Ini.GetString(_T("ComPort Setting"),_T("SERIAL_PORT"));
 	strSerialPort.Trim();
+	DWORD dwBaudRate = m_Ini.GetUInt(_T("ComPort Setting"),_T("BAUDRATE"),9600);
 	BOOL bAutoConnect = m_Ini.GetBool(_T("ComPort Setting"),_T("EN_AUTO_CONNECT"),FALSE);
 	CString strDBPath = m_Ini.GetString(_T("DB Setting"),_T("DB_PATH"),_T("C:\\PHIYO"));
 	strDBPath.TrimRight(_T('\\'));
@@ -305,6 +316,24 @@ BOOL CTMonitorDlg::OnInitDialog()
 	}
 
 	m_comboCom.SetCurSel(nSelectIndex);
+
+	int nItem = m_comboModel.AddString(_T("TS-123"));
+	m_comboModel.SetItemData(nItem,TS_123);
+	
+	nItem = m_comboModel.AddString(_T("TS-147"));
+	m_comboModel.SetItemData(nItem,TS_147);
+
+	nItem = m_comboModel.AddString(_T("TF-147"));
+	m_comboModel.SetItemData(nItem,TF_147);
+
+	m_comboModel.SetCurSel(0);
+	m_nSlotPerRow = 4;
+	m_nSlotCount = 24;
+
+	m_comboBaudRate.AddString(_T("9600"));
+	m_comboBaudRate.AddString(_T("115200"));
+	SetDlgItemInt(IDC_COMBO_BAUDRATE,dwBaudRate);
+
 
 	// 开启定时器
 	SetTimer(TIMER_TIME,1000,NULL);
@@ -617,6 +646,7 @@ void CTMonitorDlg::EnableAllSettingCtrl( BOOL bEnable /*= TRUE*/ )
 		GetDlgItem(IDC_EDIT_ALIAS)->EnableWindow(FALSE);
 		GetDlgItem(IDC_CHECK_DISABLE_SN_REPEAT)->EnableWindow(FALSE);
 		EnableAutoSaveCtrl(FALSE);
+		m_comboBaudRate.EnableWindow(FALSE);
 	}
 	else
 	{
@@ -624,6 +654,7 @@ void CTMonitorDlg::EnableAllSettingCtrl( BOOL bEnable /*= TRUE*/ )
 		GetDlgItem(IDC_EDIT_ALIAS)->EnableWindow(bEnable);
 		GetDlgItem(IDC_CHECK_DISABLE_SN_REPEAT)->EnableWindow(bEnable);
 		EnableAutoSaveCtrl(((CButton*)GetDlgItem(IDC_CHECK_AUTO_SAVE))->GetCheck());
+		m_comboBaudRate.EnableWindow(bEnable);
 	}
 	
 	GetDlgItem(IDC_BUTTON_CONNECT)->EnableWindow(bEnable);
@@ -677,9 +708,12 @@ void CTMonitorDlg::OnBnClickedButtonConnect()
 		CString strPortNum = strComName.Right(strComName.GetLength()-3);
 
 		DWORD dwPortNum = _ttoi(strPortNum);
+		CString strBaudTate;
+		m_comboBaudRate.GetWindowText(strBaudTate);
+		DWORD dwBaudRate = _ttoi(strBaudTate);
 
 		// 默认9600,8,n,1
-		if (!m_SerialPort.Open(dwPortNum))
+		if (!m_SerialPort.Open(dwPortNum,dwBaudRate))
 		{
 			AfxMessageBox(GetErrorMessage(m_SerialPort.GetErrorCode()));
 			return;
@@ -693,6 +727,7 @@ void CTMonitorDlg::OnBnClickedButtonConnect()
 		GetDlgItemText(IDC_EDIT_ALIAS,m_strAlias);
 
 		m_comboCom.EnableWindow(FALSE);
+		m_comboBaudRate.EnableWindow(FALSE);
 
 		strText.LoadString(IDS_DISCONNECT);
 		SetDlgItemText(IDC_BUTTON_CONNECT,strText);
@@ -741,6 +776,7 @@ void CTMonitorDlg::OnBnClickedButtonConnect()
 		GetDlgItem(IDC_EDIT_ALIAS)->EnableWindow(TRUE);
 		GetDlgItem(IDC_CHECK_DISABLE_SN_REPEAT)->EnableWindow(TRUE);
 		m_comboCom.EnableWindow(TRUE);
+		m_comboBaudRate.EnableWindow(TRUE);
 	}
 }
 
@@ -925,10 +961,19 @@ void CTMonitorDlg::OnClose()
 	CString strPrefix,strLocation,strSerialPort,strAlias;
 	GetDlgItemText(IDC_EDIT_PREFIX,strPrefix);
 	GetDlgItemText(IDC_EDIT_LOCATION,strLocation);
-	m_comboCom.GetLBText(m_comboCom.GetCurSel(),strSerialPort);
+
+	if (m_comboCom.GetCurSel() != -1)
+	{
+		m_comboCom.GetLBText(m_comboCom.GetCurSel(),strSerialPort);
+		m_Ini.WriteString(_T("ComPort Setting"),_T("SERIAL_PORT"),strSerialPort);
+	}
+
+	CString strBaudRate;
+	m_comboBaudRate.GetWindowText(strBaudRate);
+	m_Ini.WriteString(_T("ComPort Setting"),_T("BAUDRATE"),strBaudRate);
+	
 	m_Ini.WriteString(_T("LOG Setting"),_T("PREFIX"),strPrefix);
 	m_Ini.WriteString(_T("LOG Setting"),_T("LOCATION"),strLocation);
-	m_Ini.WriteString(_T("ComPort Setting"),_T("SERIAL_PORT"),strSerialPort);
 
 	GetDlgItemText(IDC_EDIT_ALIAS,strAlias);
 	m_Ini.WriteString(_T("Machine Info"),_T("ALIAS"),strAlias);
@@ -975,9 +1020,24 @@ void CTMonitorDlg::OnSize(UINT nType, int cx, int cy)
 	pWnd = GetWindow(GW_CHILD);
 	while (pWnd)
 	{
-		ChangeSize(pWnd,cx,cy);
+		DWORD dwFlag = 0;
+		if (pWnd->GetDlgCtrlID() == IDC_TAB_MAIN)
+		{
+			dwFlag = SIZE_ELASTIC_X_EX | SIZE_ELASTIC_Y_EX;
+		}
+		else if (pWnd->GetDlgCtrlID() == IDC_STATIC)
+		{
+			dwFlag = SIZE_MOVE_Y | SIZE_ELASTIC_Y;
+		}
+		else
+		{
+			dwFlag = SIZE_MOVE_Y;
+		}
 
-		if (pWnd->GetDlgCtrlID() == m_tabMain.GetDlgCtrlID())
+
+		ChangeSize(pWnd,cx,cy,dwFlag);
+
+		if (pWnd->GetDlgCtrlID() == IDC_TAB_MAIN)
 		{
 			CRect rectTab;
 			m_tabMain.GetClientRect(&rectTab);
@@ -999,20 +1059,56 @@ void CTMonitorDlg::OnSize(UINT nType, int cx, int cy)
 	GetClientRect(&m_Rect);
 }
 
-void CTMonitorDlg::ChangeSize( CWnd *pWnd, int cx, int cy )
+void CTMonitorDlg::ChangeSize( CWnd *pWnd, int cx, int cy,DWORD flag)
 {
 	if(pWnd)  //判断是否为空，因为对话框创建时会调用此函数，而当时控件还未创建   
 	{  
-		CRect rect;   //获取控件变化前的大小    
-		pWnd->GetWindowRect(&rect);  
-		ScreenToClient(&rect);//将控件大小转换为在对话框中的区域坐标  
+		CRect rectCtrl;   //获取控件变化前的大小    
+		pWnd->GetWindowRect(&rectCtrl);  
+		ScreenToClient(&rectCtrl);//将控件大小转换为在对话框中的区域坐标 
 
-		//    cx/m_rect.Width()为对话框在横向的变化比例  
-		rect.left=rect.left*cx/m_Rect.Width();//调整控件大小  
-		rect.right=rect.right*cx/m_Rect.Width();  
-		rect.top=rect.top*cy/m_Rect.Height();  
-		rect.bottom=rect.bottom*cy/m_Rect.Height();  
-		pWnd->MoveWindow(rect);//设置控件大小 
+		int iLeft = rectCtrl.left;
+		int iTop = rectCtrl.top;
+		int iWidth = rectCtrl.Width();
+		int iHeight = rectCtrl.Height();
+
+		// 改变X坐标
+		if ((flag & SIZE_MOVE_X) == SIZE_MOVE_X)
+		{
+			iLeft = iLeft * cx / m_Rect.Width();
+		}
+
+		// 改变Y坐标
+		if ((flag & SIZE_MOVE_Y) == SIZE_MOVE_Y)
+		{
+			iTop = iTop * cy / m_Rect.Height();
+		}
+
+		//改变宽度
+		if ((flag & SIZE_ELASTIC_X) == SIZE_ELASTIC_X)
+		{
+			iWidth = iWidth * cx / m_Rect.Width();
+		}
+
+		// 改变高度
+		if ((flag & SIZE_ELASTIC_Y) == SIZE_ELASTIC_Y)
+		{
+			iHeight = iHeight * cy / m_Rect.Height();
+		}
+
+		//改变宽度
+		if ((flag & SIZE_ELASTIC_X_EX) == SIZE_ELASTIC_X_EX)
+		{
+			iWidth = cx - iLeft - 10;
+		}
+
+		// 改变高度
+		if ((flag & SIZE_ELASTIC_Y_EX) == SIZE_ELASTIC_Y_EX)
+		{
+			iHeight = cy - iTop - 10;
+		}
+		
+		pWnd->MoveWindow(iLeft,iTop,iWidth,iHeight);
 	}  
 }
 
@@ -1151,6 +1247,11 @@ void CTMonitorDlg::OnReceive()
 						strNum.Trim();
 						int nSlotCount = _ttoi(strNum);
 
+						if (nSlotCount == 0)
+						{
+							nSlotCount = m_nSlotCount;
+						}
+
 						if (nSlotCount % 4)
 						{
 							nSlotCount++;
@@ -1159,7 +1260,17 @@ void CTMonitorDlg::OnReceive()
 						if (nSlotCount != m_nSlotCount)
 						{
 							m_nSlotCount = nSlotCount;
-							::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_SLOT_COUNT,(WPARAM)m_nSlotCount,0);
+							::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_SLOT_COUNT,(WPARAM)m_nSlotCount,(LPARAM)m_nSlotPerRow);
+
+							if (nSlotCount >= 48)
+							{
+								DWORD dwStyle = GetStyle();
+
+								if ((dwStyle & WS_MAXIMIZE) != WS_MAXIMIZE)
+								{
+									ShowWindow(SW_MAXIMIZE);
+								}
+							}
 						}
 						
 						continue;
@@ -1725,4 +1836,60 @@ afx_msg LRESULT CTMonitorDlg::OnSnRepeate(WPARAM wParam, LPARAM lParam)
 	alarm.DoModal();
 
 	return 0;
+}
+
+
+void CTMonitorDlg::OnCbnSelchangeComboModule()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	int nSelectIndex = m_comboModel.GetCurSel();
+
+	if (nSelectIndex == -1)
+	{
+		return;
+	}
+
+	DWORD dwData = m_comboModel.GetItemData(nSelectIndex);
+	UINT nSlotCount = HIWORD(dwData);
+	UINT nSlotPerRow = LOWORD(dwData);
+
+	if (nSlotCount != m_nSlotCount || nSlotPerRow != m_nSlotPerRow)
+	{
+		m_nSlotCount = nSlotCount;
+		m_nSlotPerRow = nSlotPerRow;
+		::PostMessage(m_PageDevice.GetSafeHwnd(),WM_CHANGE_SLOT_COUNT,(WPARAM)m_nSlotCount,(LPARAM)m_nSlotPerRow);
+
+		if (nSlotCount >= 48)
+		{
+			DWORD dwStyle = GetStyle();
+
+			if ((dwStyle & WS_MAXIMIZE) != WS_MAXIMIZE)
+			{
+				ShowWindow(SW_MAXIMIZE);
+			}
+		}
+	}
+	
+}
+
+
+void CTMonitorDlg::OnCbnEditchangeComboBaudrate()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	CString strBaudRate;
+	m_comboBaudRate.GetWindowText(strBaudRate);
+
+	strBaudRate.Trim();
+
+	if (strBaudRate.IsEmpty())
+	{
+		return;
+	}
+
+	TCHAR ch = strBaudRate.GetAt(strBaudRate.GetLength()-1);
+
+	if (!_istdigit(ch))
+	{
+		m_comboBaudRate.SetWindowText(_T(""));
+	}
 }

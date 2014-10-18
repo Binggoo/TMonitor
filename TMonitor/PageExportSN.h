@@ -32,7 +32,7 @@ private:
 	CRect m_rect;
 	CMySlotData *m_pMySlotData;
 
-	void ChangeSize(CWnd *pWnd,int cx,int cy);
+	void ChangeSize(CWnd *pWnd,int cx,int cy,DWORD flag);
 	void InitialListCtrl();
 public:
 	virtual BOOL OnInitDialog();

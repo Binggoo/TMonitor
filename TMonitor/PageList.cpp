@@ -41,20 +41,57 @@ BEGIN_MESSAGE_MAP(CPageList, CDialogEx)
 	ON_MESSAGE(WM_EXPORT_SUMMARY_LIST, &CPageList::OnExportSummaryList)
 END_MESSAGE_MAP()
 
-void CPageList::ChangeSize( CWnd *pWnd,int cx,int cy )
+void CPageList::ChangeSize( CWnd *pWnd,int cx,int cy,DWORD flag)
 {
 	if(pWnd)  //判断是否为空，因为对话框创建时会调用此函数，而当时控件还未创建   
 	{  
-		CRect rect;   //获取控件变化前的大小    
-		pWnd->GetWindowRect(&rect);  
-		ScreenToClient(&rect);//将控件大小转换为在对话框中的区域坐标  
+		CRect rectCtrl;   //获取控件变化前的大小    
+		pWnd->GetWindowRect(&rectCtrl);  
+		ScreenToClient(&rectCtrl);//将控件大小转换为在对话框中的区域坐标 
 
-		//    cx/m_rect.Width()为对话框在横向的变化比例  
-		rect.left=rect.left*cx/m_rect.Width();//调整控件大小  
-		rect.right=rect.right*cx/m_rect.Width();  
-		rect.top=rect.top*cy/m_rect.Height();  
-		rect.bottom=rect.bottom*cy/m_rect.Height();  
-		pWnd->MoveWindow(rect);//设置控件大小  
+		int iLeft = rectCtrl.left;
+		int iTop = rectCtrl.top;
+		int iWidth = rectCtrl.Width();
+		int iHeight = rectCtrl.Height();
+
+		// 改变X坐标
+		if ((flag & SIZE_MOVE_X) == SIZE_MOVE_X)
+		{
+			iLeft = iLeft * cx / m_rect.Width();
+		}
+
+		// 改变Y坐标
+		if ((flag & SIZE_MOVE_Y) == SIZE_MOVE_Y)
+		{
+			iTop = iTop * cy / m_rect.Height();
+		}
+
+		//改变宽度
+		if ((flag & SIZE_ELASTIC_X) == SIZE_ELASTIC_X)
+		{
+			iWidth = iWidth * cx / m_rect.Width();
+		}
+
+		// 改变高度
+		if ((flag & SIZE_ELASTIC_Y) == SIZE_ELASTIC_Y)
+		{
+			iHeight = iHeight * cy / m_rect.Height();
+		}
+
+		//改变宽度
+		if ((flag & SIZE_ELASTIC_X_EX) == SIZE_ELASTIC_X_EX)
+		{
+			iWidth = cx - iLeft - 10;
+		}
+
+		// 改变高度
+		if ((flag & SIZE_ELASTIC_Y_EX) == SIZE_ELASTIC_Y_EX)
+		{
+			iHeight = cy - iTop - 10;
+		}
+
+		pWnd->MoveWindow(iLeft,iTop,iWidth,iHeight);
+		
 	}  
 }
 
@@ -105,7 +142,20 @@ void CPageList::OnSize(UINT nType, int cx, int cy)
 	pWnd = GetWindow(GW_CHILD);
 	while (pWnd)
 	{
-		ChangeSize(pWnd,cx,cy);
+		DWORD dwFlag = SIZE_NO_CHANGE;
+
+		switch (pWnd->GetDlgCtrlID())
+		{
+		case IDC_LIST_SLOTS:
+			dwFlag = SIZE_ELASTIC_X_EX | SIZE_ELASTIC_Y_EX;
+			break;
+
+		default:
+			dwFlag = SIZE_MOVE_X | SIZE_ELASTIC_X;
+			break;
+		}
+
+		ChangeSize(pWnd,cx,cy,dwFlag);
 		pWnd = pWnd->GetWindow(GW_HWNDNEXT);
 	}
 
@@ -208,11 +258,11 @@ void CPageList::InitialListCtrl()
 	int nItem = 0;
 
 	strText.LoadString(IDS_SLOT);
-	m_ListCtrl.InsertColumn(nItem,strText,LVCFMT_LEFT,40);
+	m_ListCtrl.InsertColumn(nItem,strText,LVCFMT_LEFT,50);
 	nItem++;
 
 	strText.LoadString(IDS_TYPE);
-	m_ListCtrl.InsertColumn(nItem,strText,LVCFMT_LEFT,40);
+	m_ListCtrl.InsertColumn(nItem,strText,LVCFMT_LEFT,50);
 	nItem++;
 
 	strText.LoadString(IDS_SN);
@@ -224,15 +274,15 @@ void CPageList::InitialListCtrl()
 	nItem++;
 
 	strText.LoadString(IDS_FUNCTION);
-	m_ListCtrl.InsertColumn(nItem,strText,LVCFMT_LEFT,120);
+	m_ListCtrl.InsertColumn(nItem,strText,LVCFMT_LEFT,140);
 	nItem++;
 
 	strText.LoadString(IDS_START_TIME);
-	m_ListCtrl.InsertColumn(nItem,strText,LVCFMT_LEFT,130);
+	m_ListCtrl.InsertColumn(nItem,strText,LVCFMT_LEFT,140);
 	nItem++;
 
 	strText.LoadString(IDS_END_TIME);
-	m_ListCtrl.InsertColumn(nItem,strText,LVCFMT_LEFT,130);
+	m_ListCtrl.InsertColumn(nItem,strText,LVCFMT_LEFT,140);
 	nItem++;
 
 	strText.LoadString(IDS_SPEED_MB_S);

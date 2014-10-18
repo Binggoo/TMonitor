@@ -5,6 +5,8 @@
 #include "stdafx.h"
 #include "TMonitor.h"
 #include "TMonitorDlg.h"
+#include "Ini.h"
+#include "Utils.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -39,23 +41,10 @@ CTMonitorApp theApp;
 
 BOOL CTMonitorApp::InitInstance()
 {
-//TODO: call AfxInitRichEdit2() to initialize richedit2 library.
-	// InitCommonControlsEx() is required on Windows XP if an application
-	// manifest specifies use of ComCtl32.dll version 6 or later to enable
-	// visual styles.  Otherwise, any window creation will fail.
-	INITCOMMONCONTROLSEX InitCtrls;
-	InitCtrls.dwSize = sizeof(InitCtrls);
-	// Set this to include all the common control classes you want to use
-	// in your application.
-	InitCtrls.dwICC = ICC_WIN95_CLASSES;
-	InitCommonControlsEx(&InitCtrls);
 
 	CWinApp::InitInstance();
 
-
 	AfxEnableControlContainer();
-
-	AfxInitRichEdit2();
 
 	// Create the shell manager, in case the dialog contains
 	// any shell tree view or shell list view controls.
@@ -69,6 +58,30 @@ BOOL CTMonitorApp::InitInstance()
 	// TODO: You should modify this string to be something appropriate
 	// such as the name of your company or organization
 	SetRegistryKey(_T("Local AppWizard-Generated Applications"));
+
+	CString strPath = CUtils::GetAppPath();
+	CString strConfigName = CUtils::GetFilePathWithoutName(strPath) + CONFIG_FILE;
+
+	CIni ini(strConfigName);
+
+	int language = ini.GetInt(_T("Language"),_T("Language"),-1);
+	LCID lcid = GetThreadLocale();
+	if (language == 0)
+	{
+		if (LANG_CHINESE == PRIMARYLANGID(LANGIDFROMLCID(lcid)))
+		{
+			SetThreadUILanguage(MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
+		}
+		
+	}
+	else if (language == 1)
+	{
+		if (LANG_ENGLISH == PRIMARYLANGID(LANGIDFROMLCID(lcid)))
+		{
+			SetThreadUILanguage(MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED));
+		}
+		
+	}
 
 	CTMonitorDlg dlg;
 	m_pMainWnd = &dlg;

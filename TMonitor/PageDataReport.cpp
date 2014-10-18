@@ -125,27 +125,74 @@ void CPageDataReport::OnSize(UINT nType, int cx, int cy)
 	pWnd = GetWindow(GW_CHILD);
 	while (pWnd)
 	{
-		ChangeSize(pWnd,cx,cy);
+		DWORD dwFlag = SIZE_NO_CHANGE;
+
+		if (pWnd->GetDlgCtrlID() == IDC_LIST_QUERY)
+		{
+			dwFlag = SIZE_ELASTIC_X_EX | SIZE_ELASTIC_Y_EX;
+		}
+		else
+		{
+			dwFlag = SIZE_MOVE_X | SIZE_ELASTIC_X;
+		}
+
+		ChangeSize(pWnd,cx,cy,dwFlag);
 		pWnd = pWnd->GetWindow(GW_HWNDNEXT);
 	}
 
 	GetClientRect(&m_rect);
 }
 
-void CPageDataReport::ChangeSize( CWnd *pWnd,int cx,int cy )
+void CPageDataReport::ChangeSize( CWnd *pWnd,int cx,int cy ,DWORD flag)
 {
 	if(pWnd)  //判断是否为空，因为对话框创建时会调用此函数，而当时控件还未创建   
 	{  
-		CRect rect;   //获取控件变化前的大小    
-		pWnd->GetWindowRect(&rect);  
-		ScreenToClient(&rect);//将控件大小转换为在对话框中的区域坐标  
+		CRect rectCtrl;   //获取控件变化前的大小    
+		pWnd->GetWindowRect(&rectCtrl);  
+		ScreenToClient(&rectCtrl);//将控件大小转换为在对话框中的区域坐标 
 
-		//    cx/m_rect.Width()为对话框在横向的变化比例  
-		rect.left=rect.left*cx/m_rect.Width();//调整控件大小  
-		rect.right=rect.right*cx/m_rect.Width();  
-		rect.top=rect.top*cy/m_rect.Height();  
-		rect.bottom=rect.bottom*cy/m_rect.Height();  
-		pWnd->MoveWindow(rect);//设置控件大小  
+		int iLeft = rectCtrl.left;
+		int iTop = rectCtrl.top;
+		int iWidth = rectCtrl.Width();
+		int iHeight = rectCtrl.Height();
+
+		// 改变X坐标
+		if ((flag & SIZE_MOVE_X) == SIZE_MOVE_X)
+		{
+			iLeft = iLeft * cx / m_rect.Width();
+		}
+
+		// 改变Y坐标
+		if ((flag & SIZE_MOVE_Y) == SIZE_MOVE_Y)
+		{
+			iTop = iTop * cy / m_rect.Height();
+		}
+
+		//改变宽度
+		if ((flag & SIZE_ELASTIC_X) == SIZE_ELASTIC_X)
+		{
+			iWidth = iWidth * cx / m_rect.Width();
+		}
+
+		// 改变高度
+		if ((flag & SIZE_ELASTIC_Y) == SIZE_ELASTIC_Y)
+		{
+			iHeight = iHeight * cy / m_rect.Height();
+		}
+
+		//改变宽度
+		if ((flag & SIZE_ELASTIC_X_EX) == SIZE_ELASTIC_X_EX)
+		{
+			iWidth = cx - iLeft - 10;
+		}
+
+		// 改变高度
+		if ((flag & SIZE_ELASTIC_Y_EX) == SIZE_ELASTIC_Y_EX)
+		{
+			iHeight = cy - iTop - 10;
+		}
+
+		pWnd->MoveWindow(iLeft,iTop,iWidth,iHeight);
 	}  
 }
 
@@ -165,12 +212,12 @@ void CPageDataReport::InitialListCtrl()
 
 	strText.LoadString(IDS_SLOT);
 //	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,40);
-	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,40,nItem);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,50,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_TYPE);
 //	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,40);
-	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,40,nItem);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,50,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_MACHINE_ID);
@@ -200,17 +247,17 @@ void CPageDataReport::InitialListCtrl()
 
 	strText.LoadString(IDS_START_TIME);
 //	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,130);
-	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,130,nItem);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,140,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_END_TIME);
 //	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,130);
-	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,130,nItem);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,140,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_SPEED_MB_S);
 //	m_ListCtrlQuery.InsertColumn(nItem,strText,LVCFMT_LEFT,80);
-	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,80,nItem);
+	m_ListCtrlQuery.InsertColumnTrait(nItem+1,strText,LVCFMT_LEFT,100,nItem);
 	nItem++;
 
 	strText.LoadString(IDS_RESULT);

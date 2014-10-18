@@ -16,8 +16,8 @@ CPageDevice::CPageDevice(CWnd* pParent /*=NULL*/)
 {
 	m_nSlotCount = 24;
 	m_pMachine = NULL;
-	m_nColumn = 4;
-
+	m_nSlotPerRow = 4;
+	m_nColums = 4;
 	m_Devices = NULL;
 }
 
@@ -25,7 +25,7 @@ CPageDevice::~CPageDevice()
 {
 	if (m_Devices != NULL)
 	{
-		for (int i = 0; i < m_nSlotCount;i++)
+		for (UINT i = 0; i < m_nSlotCount;i++)
 		{
 			m_Devices[i].DestroyWindow();
 		}
@@ -61,7 +61,7 @@ BOOL CPageDevice::OnInitDialog()
 	ASSERT(m_pMachine);
 
 	//获取对话框原始大小
-	GetClientRect(&m_rect);
+	GetClientRect(&m_Rect);
 
 	CRect rectClient;
 	this->GetOwner()->GetClientRect(&rectClient);
@@ -100,20 +100,56 @@ BOOL CPageDevice::OnInitDialog()
 	// 异常: OCX 属性页应返回 FALSE
 }
 
-void CPageDevice::ChangeSize( CWnd *pWnd,int cx,int cy )
+void CPageDevice::ChangeSize( CWnd *pWnd,int cx,int cy,DWORD flag)
 {
 	if(pWnd)  //判断是否为空，因为对话框创建时会调用此函数，而当时控件还未创建   
 	{  
-		CRect rect;   //获取控件变化前的大小    
-		pWnd->GetWindowRect(&rect);  
-		ScreenToClient(&rect);//将控件大小转换为在对话框中的区域坐标  
+		CRect rectCtrl;   //获取控件变化前的大小    
+		pWnd->GetWindowRect(&rectCtrl);  
+		ScreenToClient(&rectCtrl);//将控件大小转换为在对话框中的区域坐标 
 
-		//    cx/m_rect.Width()为对话框在横向的变化比例  
-		rect.left=rect.left*cx/m_rect.Width();//调整控件大小  
-		rect.right=rect.right*cx/m_rect.Width();  
-		rect.top=rect.top*cy/m_rect.Height();  
-		rect.bottom=rect.bottom*cy/m_rect.Height();  
-		pWnd->MoveWindow(rect);//设置控件大小  
+		int iLeft = rectCtrl.left;
+		int iTop = rectCtrl.top;
+		int iWidth = rectCtrl.Width();
+		int iHeight = rectCtrl.Height();
+
+		// 改变X坐标
+		if ((flag & SIZE_MOVE_X) == SIZE_MOVE_X)
+		{
+			iLeft = iLeft * cx / m_Rect.Width();
+		}
+
+		// 改变Y坐标
+		if ((flag & SIZE_MOVE_Y) == SIZE_MOVE_Y)
+		{
+			iTop = iTop * cy / m_Rect.Height();
+		}
+
+		//改变宽度
+		if ((flag & SIZE_ELASTIC_X) == SIZE_ELASTIC_X)
+		{
+			iWidth = iWidth * cx / m_Rect.Width();
+		}
+
+		// 改变高度
+		if ((flag & SIZE_ELASTIC_Y) == SIZE_ELASTIC_Y)
+		{
+			iHeight = iHeight * cy / m_Rect.Height();
+		}
+
+		//改变宽度
+		if ((flag & SIZE_ELASTIC_X_EX) == SIZE_ELASTIC_X_EX)
+		{
+			iWidth = cx - iLeft - 10;
+		}
+
+		// 改变高度
+		if ((flag & SIZE_ELASTIC_Y_EX) == SIZE_ELASTIC_Y_EX)
+		{
+			iHeight = cy - iTop - 10;
+		}
+
+		pWnd->MoveWindow(iLeft,iTop,iWidth,iHeight);
 	}  
 }
 
@@ -132,11 +168,41 @@ void CPageDevice::OnSize(UINT nType, int cx, int cy)
 	pWnd = GetWindow(GW_CHILD);
 	while (pWnd)
 	{
-		ChangeSize(pWnd,cx,cy);
+		DWORD dwFlag = SIZE_NO_CHANGE;
+
+		switch (pWnd->GetDlgCtrlID())
+		{
+		case IDC_TEXT_FUNCTION:
+		case IDC_TEXT_PERCENT:
+		case IDC_TEXT_SPEED:
+		case IDC_TEXT_START_TIME:
+		case IDC_TEXT_END_TIME:
+		case IDC_TEXT_SPEND_TIME:
+		case IDC_TEXT_TOTAL:
+		case IDC_TEXT_EMPTY:
+		case IDC_TEXT_ACTIVE:
+		case IDC_TEXT_PASS:
+		case IDC_TEXT_FAIL:
+			dwFlag = SIZE_MOVE_Y;
+			break;
+
+		case IDC_GROUP_STATISTICS:
+			dwFlag = SIZE_MOVE_Y | SIZE_ELASTIC_Y;
+			break;
+
+		case IDC_DEVICE_FRAME:
+			dwFlag = SIZE_ELASTIC_X_EX | SIZE_ELASTIC_Y_EX;
+			break;
+
+		}
+
+		ChangeSize(pWnd,cx,cy,dwFlag);
 		pWnd = pWnd->GetWindow(GW_HWNDNEXT);
 	}
 
-	GetClientRect(&m_rect);
+	AdjustSingDevicesPos();
+
+	GetClientRect(&m_Rect);
 
 }
 
@@ -207,7 +273,11 @@ void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 				nBitmap = IDB_SD_RED;
 			}
 
-			m_Devices[nSlot].SetDeviceState(nBitmap,(ULONGLONG)slotInfo->ulCapacityMB * 1024 * 1024,slotInfo->dbSpeed,slotInfo->nPercent,slotInfo->strSN);
+			if (nSlot < m_nSlotCount && m_Devices != NULL)
+			{
+				m_Devices[nSlot].SetDeviceState(nBitmap,(ULONGLONG)slotInfo->ulCapacityMB * 1024 * 1024,slotInfo->dbSpeed,slotInfo->nPercent,slotInfo->strSN);
+			}
+			
 			
 		}
 
@@ -235,7 +305,11 @@ void CPageDevice::OnTimer(UINT_PTR nIDEvent)
 				nFail++;
 			}
 
-			m_Devices[nSlot].SetDeviceState(nBitmap,(ULONGLONG)slotInfo->ulCapacityMB * 1024 * 1024,slotInfo->dbSpeed,slotInfo->nPercent,slotInfo->strSN);
+			if (nSlot < m_nSlotCount && m_Devices != NULL)
+			{
+				m_Devices[nSlot].SetDeviceState(nBitmap,(ULONGLONG)slotInfo->ulCapacityMB * 1024 * 1024,slotInfo->dbSpeed,slotInfo->nPercent,slotInfo->strSN);
+			}
+			
 		}
 
 		CString strEndTime,strSpendTime;
@@ -378,9 +452,10 @@ HBRUSH CPageDevice::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 
 afx_msg LRESULT CPageDevice::OnChangeSlotCount(WPARAM wParam, LPARAM lParam)
 {
-	int nSlotCount = (UINT)wParam;
+	UINT nSlotCount = (UINT)wParam;
+	UINT nSlotPerRow = (UINT)lParam;
 
-	if (nSlotCount != m_nSlotCount)
+	if (nSlotCount != m_nSlotCount || nSlotPerRow != m_nSlotPerRow)
 	{
 		if (m_Devices != NULL)
 		{
@@ -394,15 +469,16 @@ afx_msg LRESULT CPageDevice::OnChangeSlotCount(WPARAM wParam, LPARAM lParam)
 		}
 
 		m_nSlotCount = nSlotCount;
+		m_nSlotPerRow = nSlotPerRow;
 	}
 
 	if (m_nSlotCount <= 24)
 	{
-		m_nColumn = 4;
+		m_nColums = 4;
 	}
 	else
 	{
-		m_nColumn = 8;	
+		m_nColums = 8;
 	}
 
 	IntialSingDevices();
@@ -418,37 +494,64 @@ void CPageDevice::IntialSingDevices()
 	GetDlgItem(IDC_DEVICE_FRAME)->GetWindowRect(&rectFrame);
 	ScreenToClient(&rectFrame);
 
-	int rows = m_nSlotCount / m_nColumn;
+	int rows = m_nSlotCount / m_nColums;
 
-	if (m_nSlotCount % m_nColumn)
+	if (m_nSlotCount % m_nColums)
 	{
 		rows++;
 	}
 
-	int nWidth = (rectFrame.Width()-2) / m_nColumn;
+	int nWidth = (rectFrame.Width()-2) / m_nColums;
 	int nHeight = (rectFrame.Height()-2) / rows;
 
-	for (int i = 0; i < m_nSlotCount;i++)
+	// 分成几块
+	UINT nBlocks = m_nColums / m_nSlotPerRow;
+	if (m_nColums % m_nSlotPerRow)
 	{
-		int nRow = i / m_nColumn;
-		int nCol = i % m_nColumn;
-
-		m_Devices[i].SetDevicePort(i);
-
-		m_Devices[i].Create(IDD_DIALOG_SING_DEVICE,this);
-
-		m_Devices[i].MoveWindow(rectFrame.left + 1 + nWidth * nCol,
-			rectFrame.top + 1 + nHeight * nRow,
-			nWidth,
-			nHeight);
-
-		m_Devices[i].ShowWindow(SW_SHOW);
+		nBlocks++;
 	}
+
+	// 每块显示几个卡
+	UINT nSlotsPerBlock = m_nSlotCount / nBlocks;
+	if (m_nSlotCount % nBlocks)
+	{
+		nSlotsPerBlock++;
+	}
+
+	for (UINT block = 0; block < nBlocks;block++)
+	{
+		for (UINT slot = 0; slot < nSlotsPerBlock;slot++)
+		{
+			int nRow = slot / m_nSlotPerRow;
+			int nCol = slot % m_nSlotPerRow;
+
+			int port = block * nSlotsPerBlock + slot;
+			if (port >= m_nSlotCount)
+			{
+				break;
+			}
+
+			m_Devices[port].SetDevicePort(port);
+			m_Devices[port].Create(IDD_DIALOG_SING_DEVICE,this);
+
+			m_Devices[port].MoveWindow(rectFrame.left + 1 + block*m_nSlotPerRow*nWidth + nWidth * nCol,
+				rectFrame.top + 1 + nHeight * nRow,
+				nWidth,
+				nHeight);
+
+			m_Devices[port].ShowWindow(SW_SHOW);
+		}
+	}
+	
 }
 
 void CPageDevice::ChangeDeviceStatus( int nSlot,UINT nBitmap ,CString strSN,ULONGLONG ullCapacity)
 {
-	m_Devices[nSlot].SetBitmap(nBitmap,strSN,ullCapacity);
+	if (nSlot < m_nSlotCount && m_Devices != NULL)
+	{
+		m_Devices[nSlot].SetBitmap(nBitmap,strSN,ullCapacity);
+	}
+	
 }
 
 void CPageDevice::Reset()
@@ -456,5 +559,68 @@ void CPageDevice::Reset()
 	for (int i = 0; i < m_nSlotCount;i++)
 	{
 		m_Devices[i].Intial();
+	}
+}
+
+void CPageDevice::AdjustSingDevicesPos()
+{
+	if (m_Devices == NULL)
+	{
+		return;
+	}
+
+	if (GetDlgItem(IDC_DEVICE_FRAME) == NULL)
+	{
+		return;
+	}
+
+	CRect rectFrame;
+	GetDlgItem(IDC_DEVICE_FRAME)->GetWindowRect(&rectFrame);
+	ScreenToClient(&rectFrame);
+
+	int rows = m_nSlotCount / m_nColums;
+
+	if (m_nSlotCount % m_nColums)
+	{
+		rows++;
+	}
+
+	int nWidth = (rectFrame.Width()-2) / m_nColums;
+	int nHeight = (rectFrame.Height()-2) / rows;
+
+	// 分成几块
+	UINT nBlocks = m_nColums / m_nSlotPerRow;
+	if (m_nColums % m_nSlotPerRow)
+	{
+		nBlocks++;
+	}
+
+	// 每块显示几个卡
+	UINT nSlotsPerBlock = m_nSlotCount / nBlocks;
+	if (m_nSlotCount % nBlocks)
+	{
+		nSlotsPerBlock++;
+	}
+
+	for (UINT block = 0; block < nBlocks;block++)
+	{
+		for (UINT slot = 0; slot < nSlotsPerBlock;slot++)
+		{
+			int nRow = slot / m_nSlotPerRow;
+			int nCol = slot % m_nSlotPerRow;
+
+			int port = block * nSlotsPerBlock + slot;
+			if (port >= m_nSlotCount)
+			{
+				break;
+			}
+
+			m_Devices[port].MoveWindow(rectFrame.left + 1 + block*m_nSlotPerRow*nWidth + nWidth * nCol,
+				rectFrame.top + 1 + nHeight * nRow,
+				nWidth,
+				nHeight);
+
+			m_Devices[port].ShowWindow(SW_SHOW);
+		}
 	}
 }

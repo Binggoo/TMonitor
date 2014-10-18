@@ -16,14 +16,6 @@
 #include "SlotData.h"
 #include "AlarmDlg.h"
 
-#define  TIMER_TIME 1
-#define  PRJ_NAME   _T("PHIYO-TS Card Duplicator-Ver:")
-#define  TEMP_FILE  _T("\\temp.log")
-#define  DEFAULT_PASSWORD  _T("phiyo")
-#define  CONFIG_FILE _T("\\setting.ini")
-
-#define PAGE_COUNT  5
-
 // CTMonitorDlg dialog
 class CTMonitorDlg : public CDialogEx
 {
@@ -54,6 +46,8 @@ private:
 	BOOL        m_bCheckDate;
 	BOOL        m_bCheckTime;
 	CComboBox   m_comboCom;
+	CComboBox   m_comboModel;
+	CComboBox   m_comboBaudRate;
 
 	CPageDevice m_PageDevice;
 	CPageLog    m_PageLog;
@@ -78,6 +72,7 @@ private:
 	CString     m_strFirmware;
 	CString     m_strBLD;
 	UINT        m_nSlotCount;
+	UINT        m_nSlotPerRow;
 
 	CMachineInfo m_Machine;
 	HANDLE      m_hEvent;
@@ -92,7 +87,7 @@ private:
 	void UpdateFileName();
 	int  GetSystemPorts(CStringArray &strArrayName, CStringArray &strArrayPort);
 	CString * SplitString(CString str, char split, int& iSubStrs);
-	void ChangeSize(CWnd *pWnd, int cx, int cy);
+	void ChangeSize(CWnd *pWnd, int cx, int cy,DWORD flag);
 
 public:
 	static CString GetAppVersion(CString strPath);
@@ -127,4 +122,7 @@ private:
 	BOOL m_bCheckForbidSN;
 protected:
 	afx_msg LRESULT OnSnRepeate(WPARAM wParam, LPARAM lParam);
+public:
+	afx_msg void OnCbnSelchangeComboModule();
+	afx_msg void OnCbnEditchangeComboBaudrate();
 };

@@ -30,17 +30,19 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 private:
-	CRect      m_rect;
+	CRect      m_Rect;
 	UINT       m_nSlotCount;
-	UINT       m_nColumn;
+	UINT       m_nSlotPerRow;
+	UINT       m_nColums;
 
 	CMachineInfo *m_pMachine;
 	CSingDevice  *m_Devices;
 
-	void ChangeSize(CWnd *pWnd,int cx,int cy);
+	void ChangeSize(CWnd *pWnd,int cx,int cy,DWORD flag);
 	
 	void IntialSingDevices();
 
+	void AdjustSingDevicesPos();
 	
 
 public:

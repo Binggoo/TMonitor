@@ -56,7 +56,7 @@ private:
 		COL_RESULT
 	};
 
-	void ChangeSize(CWnd *pWnd,int cx,int cy);
+	void ChangeSize(CWnd *pWnd,int cx,int cy,DWORD flag);
 	void InitialListCtrl();
 public:
 	virtual BOOL OnInitDialog();
